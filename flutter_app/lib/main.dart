@@ -14,7 +14,65 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: BLEHomeScreen(),
+      home: OnboardingScreen(),
+    );
+  }
+}
+
+class OnboardingScreen extends StatelessWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/lionbit_car.png',
+              width: 200,
+              height: 200,
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              "LionBit BLE Communicator",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                "Connect and communicate with your LionBit devices via Bluetooth Low Energy",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 50),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const BLEHomeScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                backgroundColor: Colors.blue,
+              ),
+              child: const Text(
+                "Get Started",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -27,6 +85,11 @@ class BLEHomeScreen extends StatefulWidget {
 }
 
 class _BLEHomeScreenState extends State<BLEHomeScreen> {
+  // UUIDs must match your ESP32 firmware
+  static const String SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
+  static const String CHARACTERISTIC_UUID =
+      "87654321-4321-4321-4321-ba0987654321";
+
   List<BluetoothDevice> scannedDevices = [];
   BluetoothDevice? connectedDevice;
   BluetoothCharacteristic? targetCharacteristic;
@@ -51,13 +114,36 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   /// Start scanning for BLE devices
   void startScan() async {
     scannedDevices.clear();
+    setState(() {});
+
+    // Check if Bluetooth is available
+    if (await FlutterBluePlus.isSupported == false) {
+      print("Bluetooth not supported by this device");
+      return;
+    }
+
+    // Check if Bluetooth is turned on
+    var adapterState = await FlutterBluePlus.adapterState.first;
+    print("Bluetooth adapter state: $adapterState");
+    if (adapterState != BluetoothAdapterState.on) {
+      print("Please turn on Bluetooth");
+      return;
+    }
+
+    print("Starting BLE scan...");
     await FlutterBluePlus.stopScan();
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
+
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
 
     FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
+      print("Scan found ${results.length} devices");
       for (ScanResult result in results) {
-        if (!scannedDevices.contains(result.device) &&
-            result.device.name.isNotEmpty) {
+        String deviceName = result.device.platformName;
+        print("Found device: $deviceName (${result.device.remoteId})");
+
+        // Show all devices with names (remove ESP32 filter temporarily for debugging)
+        if (deviceName.isNotEmpty && !scannedDevices.contains(result.device)) {
+          print("Adding device: $deviceName");
           setState(() {
             scannedDevices.add(result.device);
           });
@@ -65,7 +151,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       }
     });
 
-    Future.delayed(const Duration(seconds: 10), () {
+    Future.delayed(const Duration(seconds: 15), () {
+      print("Scan completed. Found ${scannedDevices.length} devices");
       FlutterBluePlus.stopScan();
     });
   }
@@ -83,37 +170,221 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
 
   /// Discover services & characteristics
   void discoverServices(BluetoothDevice device) async {
-    List<BluetoothService> services = await device.discoverServices();
-    for (var service in services) {
-      for (var characteristic in service.characteristics) {
-        if (characteristic.properties.notify || characteristic.properties.write) {
-          targetCharacteristic = characteristic;
-          await characteristic.setNotifyValue(true);
-          characteristic.value.listen((value) {
-            setState(() {
-              chatMessages.insert(0, {
-                "text": utf8.decode(value),
-                "isSent": false, // False means received from ESP32
-              });
-            });
-          });
+    try {
+      print("=== Starting Service Discovery ===");
+      print("Looking for Service UUID: $SERVICE_UUID");
+      print("Looking for Characteristic UUID: $CHARACTERISTIC_UUID");
+
+      List<BluetoothService> services = await device.discoverServices();
+      print("Found ${services.length} services");
+
+      // Print all services and characteristics for debugging
+      for (var service in services) {
+        print("\n--- Service: ${service.uuid} ---");
+        for (var char in service.characteristics) {
+          print("  Characteristic: ${char.uuid}");
+          print("    Read: ${char.properties.read}");
+          print("    Write: ${char.properties.write}");
+          print(
+              "    WriteWithoutResponse: ${char.properties.writeWithoutResponse}");
+          print("    Notify: ${char.properties.notify}");
         }
+      }
+
+      print("\n=== Searching for Target Service ===");
+      for (var service in services) {
+        print(
+            "Comparing: ${service.uuid.toString().toLowerCase()} with ${SERVICE_UUID.toLowerCase()}");
+
+        // Look for our specific service
+        if (service.uuid.toString().toLowerCase() ==
+            SERVICE_UUID.toLowerCase()) {
+          print("✓ Found target service: ${service.uuid}");
+
+          for (var characteristic in service.characteristics) {
+            print(
+                "  Comparing char: ${characteristic.uuid.toString().toLowerCase()} with ${CHARACTERISTIC_UUID.toLowerCase()}");
+
+            // Match our specific characteristic
+            if (characteristic.uuid.toString().toLowerCase() ==
+                CHARACTERISTIC_UUID.toLowerCase()) {
+              targetCharacteristic = characteristic;
+              print("✓ Found target characteristic: ${characteristic.uuid}");
+              print("Characteristic properties:");
+              print("  - Read: ${characteristic.properties.read}");
+              print("  - Write: ${characteristic.properties.write}");
+              print(
+                  "  - WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
+              print("  - Notify: ${characteristic.properties.notify}");
+
+              // Update UI state
+              setState(() {});
+
+              // Show success message
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("✓ Device ready! You can send messages now."),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+
+              // Enable notifications if supported
+              if (characteristic.properties.notify) {
+                await characteristic.setNotifyValue(true);
+                print("✓ Notifications enabled");
+
+                // Listen for incoming data from ESP32
+                characteristic.lastValueStream.listen((value) {
+                  if (value.isNotEmpty) {
+                    String message = utf8.decode(value);
+                    print("Received from ESP32: $message");
+                    if (mounted) {
+                      setState(() {
+                        chatMessages.insert(0, {
+                          "text": message,
+                          "isSent": false,
+                        });
+                      });
+                    }
+                  }
+                });
+              }
+              break; // Found our characteristic, stop looking
+            }
+          }
+          break; // Found our service, stop looking
+        }
+      }
+
+      if (targetCharacteristic == null) {
+        print("✗ Warning: Target characteristic not found!");
+        print("Please check that the ESP32 firmware has the correct UUIDs:");
+        print("  Service: $SERVICE_UUID");
+        print("  Characteristic: $CHARACTERISTIC_UUID");
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  "Error: Service/Characteristic not found!\nCheck ESP32 UUIDs in firmware."),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'View Logs',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Logs are already printed to console
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print("✗ Error discovering services: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Connection Error: $e"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
 
   /// Send a message from the mobile app to the ESP32
   void sendMessage() async {
-    if (targetCharacteristic != null && messageController.text.isNotEmpty) {
+    print("Send button pressed");
+    print("targetCharacteristic is null: ${targetCharacteristic == null}");
+    print("connectedDevice is null: ${connectedDevice == null}");
+
+    if (targetCharacteristic == null) {
+      print("Error: targetCharacteristic is null");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Not connected to device characteristic. Try reconnecting."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (messageController.text.isEmpty) {
+      print("Error: Message is empty");
+      return;
+    }
+
+    try {
       String message = messageController.text.trim();
-      await targetCharacteristic!.write(utf8.encode(message));
-      setState(() {
-        chatMessages.insert(0, {
-          "text": message,
-          "isSent": true, // True means sent from mobile to ESP32
+      print("Attempting to send: $message");
+
+      // Check which write type is supported
+      bool withoutResponse =
+          targetCharacteristic!.properties.writeWithoutResponse;
+      bool withResponse = targetCharacteristic!.properties.write;
+
+      print(
+          "Write supported: $withResponse, WriteWithoutResponse: $withoutResponse");
+
+      if (!withResponse && !withoutResponse) {
+        print("Error: Characteristic does not support write operations");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Device characteristic cannot receive messages"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Write to characteristic (prefer withoutResponse for better performance)
+      await targetCharacteristic!.write(
+        utf8.encode(message),
+        withoutResponse: withoutResponse,
+      );
+
+      print("Message sent successfully");
+
+      if (mounted) {
+        setState(() {
+          chatMessages.insert(0, {
+            "text": message,
+            "isSent": true, // True means sent from mobile to ESP32
+          });
         });
-      });
-      messageController.clear();
+
+        messageController.clear();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✓ Message sent!"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error sending message: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to send: $e"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -132,7 +403,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ESP32 BLE Chat"), backgroundColor: Colors.blue),
+      appBar: AppBar(
+          title: const Text("LionBit Bluetooth Controller"),
+          backgroundColor: Colors.blue),
       body: connectedDevice == null ? _buildScanUI() : _buildChatUI(),
     );
   }
@@ -141,7 +414,18 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   Widget _buildScanUI() {
     return Column(
       children: [
+        const SizedBox(height: 20),
+        Image.asset(
+          'assets/lionbit_car.png',
+          width: 160,
+          height: 160,
+        ),
         const SizedBox(height: 10),
+        const Text(
+          "LionBit BLE Communicator",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 20),
         ElevatedButton(
           onPressed: startScan,
           child: const Text("Scan for Devices"),
@@ -152,8 +436,10 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
             itemBuilder: (context, index) {
               BluetoothDevice device = scannedDevices[index];
               return ListTile(
-                title: Text(device.name),
-                subtitle: Text(device.id.toString()),
+                title: Text(device.platformName.isNotEmpty
+                    ? device.platformName
+                    : "Unknown Device"),
+                subtitle: Text(device.remoteId.toString()),
                 onTap: () => connectToDevice(device),
               );
             },
@@ -169,7 +455,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       children: [
         const SizedBox(height: 10),
         Text(
-          "Connected to: ${connectedDevice!.name}",
+          "Connected to: ${connectedDevice!.platformName}",
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -206,7 +492,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
         ),
         child: Text(
           message["text"],
-          style: TextStyle(fontSize: 16, color: isSent ? Colors.white : Colors.black),
+          style: TextStyle(
+              fontSize: 16, color: isSent ? Colors.white : Colors.black),
         ),
       ),
     );
@@ -223,7 +510,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
               controller: messageController,
               decoration: InputDecoration(
                 hintText: "Type a message...",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ),
