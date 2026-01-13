@@ -99,16 +99,62 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   @override
   void initState() {
     super.initState();
-    requestPermissions();
+    _initBluetooth();
+  }
+
+  /// Initialize Bluetooth and request permissions
+  Future<void> _initBluetooth() async {
+    await requestPermissions();
     startScan();
   }
 
   /// Request necessary permissions for Bluetooth
   Future<void> requestPermissions() async {
-    await Permission.bluetooth.request();
-    await Permission.bluetoothScan.request();
-    await Permission.bluetoothConnect.request();
-    await Permission.locationWhenInUse.request();
+    // Request all permissions and check if granted
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+    ].request();
+
+    // Check if all permissions are granted
+    bool allGranted = statuses.values.every((status) => status.isGranted);
+    
+    if (!allGranted) {
+      print("❌ Some permissions were denied:");
+      statuses.forEach((permission, status) {
+        print("  $permission: $status");
+      });
+      
+      // Show dialog to user
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Permissions Required'),
+            content: const Text(
+              'Bluetooth and Location permissions are required to scan for BLE devices. '
+              'Please grant all permissions in the app settings.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  openAppSettings();
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      print("✅ All Bluetooth permissions granted");
+    }
   }
 
   /// Start scanning for BLE devices
