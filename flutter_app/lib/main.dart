@@ -46,7 +46,7 @@ class OnboardingScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                "Connect and communicate with your LionBit devices via Bluetooth Low Energy",
+                "Connect and communicate with your ESP32 devices via Bluetooth Low Energy",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -405,8 +405,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text("LionBit Bluetooth Controller"),
-          backgroundColor: Colors.blue),
+          title: const Text("ESP32 BLE Connect"), backgroundColor: Colors.blue),
       body: connectedDevice == null ? _buildScanUI() : _buildChatUI(),
     );
   }
