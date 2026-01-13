@@ -435,10 +435,21 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
             itemCount: scannedDevices.length,
             itemBuilder: (context, index) {
               BluetoothDevice device = scannedDevices[index];
+              String deviceName = device.platformName.isNotEmpty
+                  ? device.platformName
+                  : "Unknown Device";
+              bool isLionBit = deviceName == "LionBit_BLE";
+
               return ListTile(
-                title: Text(device.platformName.isNotEmpty
-                    ? device.platformName
-                    : "Unknown Device"),
+                leading: isLionBit
+                    ? Image.asset(
+                        'assets/lionbit_car.png',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.contain,
+                      )
+                    : const Icon(Icons.bluetooth, color: Colors.blue),
+                title: Text(deviceName),
                 subtitle: Text(device.remoteId.toString()),
                 onTap: () => connectToDevice(device),
               );
