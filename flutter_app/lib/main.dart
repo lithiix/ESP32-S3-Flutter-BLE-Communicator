@@ -356,6 +356,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
 
       print("Message sent successfully");
 
+      // Clear the input field immediately after sending
+      messageController.clear();
+
       if (mounted) {
         setState(() {
           chatMessages.insert(0, {
@@ -363,8 +366,6 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
             "isSent": true, // True means sent from mobile to ESP32
           });
         });
-
-        messageController.clear();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -470,9 +471,50 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        ElevatedButton(
-          onPressed: disconnectDevice,
-          child: const Text("Disconnect"),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: disconnectDevice,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Disconnect",
+                  style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  chatMessages.clear();
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Chat cleared"),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text("Clear Chat",
+                  style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CarControlScreen(
+                      device: connectedDevice!,
+                      characteristic: targetCharacteristic!,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text("Car Control",
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         Expanded(
@@ -532,6 +574,190 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
             onPressed: sendMessage,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Car Control Screen with Joystick
+class CarControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const CarControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<CarControlScreen> createState() => _CarControlScreenState();
+}
+
+class _CarControlScreenState extends State<CarControlScreen> {
+  String currentDirection = "STOP";
+  int speed = 128; // Speed from 0-255
+
+  void sendCommand(String command) async {
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      setState(() {
+        currentDirection = command;
+      });
+      print("Command sent: $command");
+    } catch (e) {
+      print("Error sending command: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Car Control"),
+        backgroundColor: Colors.blue,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            Image.asset(
+              'assets/lionbit_car.png',
+              width: 120,
+              height: 120,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Connected to: ${widget.device.platformName}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                "Direction: $currentDirection",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            // Joystick Controls
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Forward button
+                    _buildControlButton(
+                      icon: Icons.arrow_upward,
+                      label: "FORWARD",
+                      onTapDown: () => sendCommand("F"),
+                      onTapUp: () => sendCommand("S"),
+                    ),
+                    const SizedBox(height: 20),
+                    // Left, Stop, Right
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.arrow_back,
+                          label: "LEFT",
+                          onTapDown: () => sendCommand("L"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                        const SizedBox(width: 20),
+                        _buildControlButton(
+                          icon: Icons.stop,
+                          label: "STOP",
+                          onTapDown: () => sendCommand("S"),
+                          onTapUp: () => sendCommand("S"),
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 20),
+                        _buildControlButton(
+                          icon: Icons.arrow_forward,
+                          label: "RIGHT",
+                          onTapDown: () => sendCommand("R"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Backward button
+                    _buildControlButton(
+                      icon: Icons.arrow_downward,
+                      label: "BACKWARD",
+                      onTapDown: () => sendCommand("B"),
+                      onTapUp: () => sendCommand("S"),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTapDown,
+    required VoidCallback onTapUp,
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTapDown: (_) => onTapDown(),
+      onTapUp: (_) => onTapUp(),
+      onTapCancel: onTapUp,
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: color ?? Colors.blue,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: Colors.white),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
