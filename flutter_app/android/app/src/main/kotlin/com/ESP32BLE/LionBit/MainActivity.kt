@@ -1,4 +1,4 @@
-package com.senurah.ble_esp32
+package com.ESP32BLE.LionBit
 
 import io.flutter.embedding.android.FlutterActivity
 
