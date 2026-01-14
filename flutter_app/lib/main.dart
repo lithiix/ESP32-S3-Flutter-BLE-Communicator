@@ -548,7 +548,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CarControlScreen(
+                    builder: (context) => ControllerSelectionScreen(
                       device: connectedDevice!,
                       characteristic: targetCharacteristic!,
                     ),
@@ -556,7 +556,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("Car Control",
+              child: const Text("Controllers",
                   style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -624,24 +624,186 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   }
 }
 
-// Car Control Screen with Joystick
-class CarControlScreen extends StatefulWidget {
+// Controller Selection Screen
+class ControllerSelectionScreen extends StatelessWidget {
   final BluetoothDevice device;
   final BluetoothCharacteristic characteristic;
 
-  const CarControlScreen({
+  const ControllerSelectionScreen({
     super.key,
     required this.device,
     required this.characteristic,
   });
 
   @override
-  State<CarControlScreen> createState() => _CarControlScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Controller Type"),
+        backgroundColor: Colors.blue,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade50, Colors.white],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/lionbit_car.png',
+                width: 120,
+                height: 120,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Connected to: ${device.platformName}",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 40),
+              _buildControllerOption(
+                context,
+                icon: Icons.two_wheeler,
+                title: "2-Wheel Driver",
+                subtitle: "Bike, Motorcycle, Segway",
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TwoWheelControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildControllerOption(
+                context,
+                icon: Icons.directions_car,
+                title: "4-Wheel Driver",
+                subtitle: "Car, RC Car, Rover",
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => FourWheelControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _buildControllerOption(
+                context,
+                icon: Icons.settings_input_component,
+                title: "Advanced Control",
+                subtitle: "Armed Devices, Multi-Wheelers, Custom",
+                color: Colors.red,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AdvancedControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControllerOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.85,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 50, color: Colors.white),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _CarControlScreenState extends State<CarControlScreen> {
+// 2-Wheel Control Screen
+class TwoWheelControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const TwoWheelControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<TwoWheelControlScreen> createState() => _TwoWheelControlScreenState();
+}
+
+class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
   String currentDirection = "STOP";
-  int speed = 128; // Speed from 0-255
 
   void sendCommand(String command) async {
     try {
@@ -662,7 +824,186 @@ class _CarControlScreenState extends State<CarControlScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Car Control"),
+        title: const Text("2-Wheel Control"),
+        backgroundColor: Colors.orange,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.orange.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Icon(Icons.two_wheeler, size: 100, color: Colors.orange),
+            const SizedBox(height: 10),
+            Text(
+              "Connected to: ${widget.device.platformName}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                "Status: $currentDirection",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Forward/Accelerate button
+                    _buildControlButton(
+                      icon: Icons.arrow_upward,
+                      label: "FORWARD",
+                      onTapDown: () => sendCommand("F"),
+                      onTapUp: () => sendCommand("S"),
+                    ),
+                    const SizedBox(height: 40),
+                    // Left Lean and Right Lean
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.rotate_left,
+                          label: "LEAN LEFT",
+                          onTapDown: () => sendCommand("L"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                        const SizedBox(width: 40),
+                        _buildControlButton(
+                          icon: Icons.stop,
+                          label: "STOP",
+                          onTapDown: () => sendCommand("S"),
+                          onTapUp: () => sendCommand("S"),
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 40),
+                        _buildControlButton(
+                          icon: Icons.rotate_right,
+                          label: "LEAN RIGHT",
+                          onTapDown: () => sendCommand("R"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                    // Backward/Brake button
+                    _buildControlButton(
+                      icon: Icons.arrow_downward,
+                      label: "BACKWARD",
+                      onTapDown: () => sendCommand("B"),
+                      onTapUp: () => sendCommand("S"),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTapDown,
+    required VoidCallback onTapUp,
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTapDown: (_) => onTapDown(),
+      onTapUp: (_) => onTapUp(),
+      onTapCancel: onTapUp,
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: color ?? Colors.orange,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: Colors.white),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 4-Wheel Control Screen (renamed from CarControlScreen)
+class FourWheelControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const FourWheelControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<FourWheelControlScreen> createState() => _FourWheelControlScreenState();
+}
+
+class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
+  String currentDirection = "STOP";
+
+  void sendCommand(String command) async {
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      setState(() {
+        currentDirection = command;
+      });
+      print("Command sent: $command");
+    } catch (e) {
+      print("Error sending command: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("4-Wheel Control"),
         backgroundColor: Colors.blue,
       ),
       body: Container(
@@ -802,6 +1143,334 @@ class _CarControlScreenState extends State<CarControlScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// Advanced Control Screen for armed devices and multi-wheelers
+class AdvancedControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const AdvancedControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<AdvancedControlScreen> createState() => _AdvancedControlScreenState();
+}
+
+class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
+  String currentCommand = "IDLE";
+  bool isArmed = false;
+
+  void sendCommand(String command) async {
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      setState(() {
+        currentCommand = command;
+      });
+      print("Command sent: $command");
+    } catch (e) {
+      print("Error sending command: $e");
+    }
+  }
+
+  void toggleArm() {
+    setState(() {
+      isArmed = !isArmed;
+      sendCommand(isArmed ? "ARM" : "DISARM");
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Advanced Control"),
+        backgroundColor: Colors.red,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.red.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Icon(Icons.settings_input_component,
+                size: 100, color: Colors.red),
+            const SizedBox(height: 10),
+            Text(
+              "Connected to: ${widget.device.platformName}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: isArmed ? Colors.red.shade100 : Colors.green.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                isArmed ? "ARMED - $currentCommand" : "DISARMED - Safe Mode",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isArmed ? Colors.red : Colors.green,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Arm/Disarm Toggle
+            ElevatedButton.icon(
+              onPressed: toggleArm,
+              icon: Icon(isArmed ? Icons.shield : Icons.shield_outlined),
+              label: Text(isArmed ? "DISARM SYSTEM" : "ARM SYSTEM"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isArmed ? Colors.green : Colors.red,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Primary Movement Controls
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.north_west,
+                          label: "FL",
+                          command: "FL",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.arrow_upward,
+                          label: "FWD",
+                          command: "F",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.north_east,
+                          label: "FR",
+                          command: "FR",
+                          enabled: isArmed,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.arrow_back,
+                          label: "LEFT",
+                          command: "L",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.stop,
+                          label: "STOP",
+                          command: "S",
+                          enabled: true,
+                          color: Colors.orange,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.arrow_forward,
+                          label: "RIGHT",
+                          command: "R",
+                          enabled: isArmed,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: Icons.south_west,
+                          label: "BL",
+                          command: "BL",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.arrow_downward,
+                          label: "BACK",
+                          command: "B",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildControlButton(
+                          icon: Icons.south_east,
+                          label: "BR",
+                          command: "BR",
+                          enabled: isArmed,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    // Additional Advanced Controls
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.rotate_left,
+                          label: "ROTATE L",
+                          command: "RL",
+                          enabled: isArmed,
+                        ),
+                        const SizedBox(width: 20),
+                        _buildActionButton(
+                          icon: Icons.rotate_right,
+                          label: "ROTATE R",
+                          command: "RR",
+                          enabled: isArmed,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.flash_on,
+                          label: "BOOST",
+                          command: "BOOST",
+                          enabled: isArmed,
+                          color: Colors.amber,
+                        ),
+                        const SizedBox(width: 20),
+                        _buildActionButton(
+                          icon: Icons.light_mode,
+                          label: "LIGHTS",
+                          command: "LIGHT",
+                          enabled: isArmed,
+                          color: Colors.yellow,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required String command,
+    required bool enabled,
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTapDown: enabled ? (_) => sendCommand(command) : null,
+      onTapUp: enabled ? (_) => sendCommand("S") : null,
+      onTapCancel: enabled ? () => sendCommand("S") : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.3,
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: color ?? Colors.red,
+            shape: BoxShape.circle,
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 30, color: Colors.white),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required String command,
+    required bool enabled,
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? () => sendCommand(command) : null,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.3,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          decoration: BoxDecoration(
+            color: color ?? Colors.red,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 24, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
