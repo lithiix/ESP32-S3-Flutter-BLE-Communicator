@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:convert';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 void main() {
   runApp(const MyApp());
@@ -93,8 +94,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   List<BluetoothDevice> scannedDevices = [];
   BluetoothDevice? connectedDevice;
   BluetoothCharacteristic? targetCharacteristic;
-  List<Map<String, dynamic>> chatMessages = [];
-  TextEditingController messageController = TextEditingController();
+  bool isDiscoveringServices = false;
 
   @override
   void initState() {
@@ -119,13 +119,13 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
 
     // Check if all permissions are granted
     bool allGranted = statuses.values.every((status) => status.isGranted);
-    
+
     if (!allGranted) {
       print("❌ Some permissions were denied:");
       statuses.forEach((permission, status) {
         print("  $permission: $status");
       });
-      
+
       // Show dialog to user
       if (mounted) {
         showDialog(
@@ -133,9 +133,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
           builder: (context) => AlertDialog(
             title: const Text('Permissions Required'),
             content: const Text(
-              'Bluetooth and Location permissions are required to scan for BLE devices. '
-              'Please grant all permissions in the app settings.'
-            ),
+                'Bluetooth and Location permissions are required to scan for BLE devices. '
+                'Please grant all permissions in the app settings.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -209,6 +208,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
     await device.connect();
     setState(() {
       connectedDevice = device;
+      isDiscoveringServices = true;
     });
 
     discoverServices(device);
@@ -266,13 +266,15 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
               // Update UI state
               setState(() {});
 
-              // Show success message
+              // Navigate directly to controller selection screen
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("✓ Device ready! You can send messages now."),
-                    backgroundColor: Colors.green,
-                    duration: Duration(seconds: 3),
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ControllerSelectionScreen(
+                      device: device,
+                      characteristic: characteristic,
+                    ),
                   ),
                 );
               }
@@ -281,22 +283,6 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
               if (characteristic.properties.notify) {
                 await characteristic.setNotifyValue(true);
                 print("✓ Notifications enabled");
-
-                // Listen for incoming data from ESP32
-                characteristic.lastValueStream.listen((value) {
-                  if (value.isNotEmpty) {
-                    String message = utf8.decode(value);
-                    print("Received from ESP32: $message");
-                    if (mounted) {
-                      setState(() {
-                        chatMessages.insert(0, {
-                          "text": message,
-                          "isSent": false,
-                        });
-                      });
-                    }
-                  }
-                });
               }
               break; // Found our characteristic, stop looking
             }
@@ -343,116 +329,34 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
     }
   }
 
-  /// Send a message from the mobile app to the ESP32
-  void sendMessage() async {
-    print("Send button pressed");
-    print("targetCharacteristic is null: ${targetCharacteristic == null}");
-    print("connectedDevice is null: ${connectedDevice == null}");
-
-    if (targetCharacteristic == null) {
-      print("Error: targetCharacteristic is null");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                "Not connected to device characteristic. Try reconnecting."),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
-
-    if (messageController.text.isEmpty) {
-      print("Error: Message is empty");
-      return;
-    }
-
-    try {
-      String message = messageController.text.trim();
-      print("Attempting to send: $message");
-
-      // Check which write type is supported
-      bool withoutResponse =
-          targetCharacteristic!.properties.writeWithoutResponse;
-      bool withResponse = targetCharacteristic!.properties.write;
-
-      print(
-          "Write supported: $withResponse, WriteWithoutResponse: $withoutResponse");
-
-      if (!withResponse && !withoutResponse) {
-        print("Error: Characteristic does not support write operations");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Device characteristic cannot receive messages"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Write to characteristic (prefer withoutResponse for better performance)
-      await targetCharacteristic!.write(
-        utf8.encode(message),
-        withoutResponse: withoutResponse,
-      );
-
-      print("Message sent successfully");
-
-      // Clear the input field immediately after sending
-      messageController.clear();
-
-      if (mounted) {
-        setState(() {
-          chatMessages.insert(0, {
-            "text": message,
-            "isSent": true, // True means sent from mobile to ESP32
-          });
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("✓ Message sent!"),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      print("Error sending message: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Failed to send: $e"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Disconnect BLE device
-  void disconnectDevice() async {
-    if (connectedDevice != null) {
-      await connectedDevice!.disconnect();
-      setState(() {
-        connectedDevice = null;
-        targetCharacteristic = null;
-        chatMessages.clear();
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
           title: const Text("ESP32 BLE Connect"), backgroundColor: Colors.blue),
-      body: connectedDevice == null ? _buildScanUI() : _buildChatUI(),
+      body: connectedDevice == null ? _buildScanUI() : _buildLoadingUI(),
+    );
+  }
+
+  /// Loading UI while discovering services
+  Widget _buildLoadingUI() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 20),
+          Text(
+            "Connecting to ${connectedDevice!.platformName}...",
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "Discovering services...",
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 
@@ -505,123 +409,6 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       ],
     );
   }
-
-  /// UI for Chat Messages
-  Widget _buildChatUI() {
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        Text(
-          "Connected to: ${connectedDevice!.platformName}",
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: disconnectDevice,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("Disconnect",
-                  style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  chatMessages.clear();
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Chat cleared"),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text("Clear Chat",
-                  style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ControllerSelectionScreen(
-                      device: connectedDevice!,
-                      characteristic: targetCharacteristic!,
-                    ),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("Controllers",
-                  style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.builder(
-            reverse: true, // Newest message on top
-            itemCount: chatMessages.length,
-            itemBuilder: (context, index) {
-              return _buildChatBubble(chatMessages[index]);
-            },
-          ),
-        ),
-        _buildMessageInput(),
-      ],
-    );
-  }
-
-  /// Chat bubble for displaying messages
-  Widget _buildChatBubble(Map<String, dynamic> message) {
-    bool isSent = message["isSent"];
-    return Align(
-      alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isSent ? Colors.blue[300] : Colors.grey[300],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          message["text"],
-          style: TextStyle(
-              fontSize: 16, color: isSent ? Colors.white : Colors.black),
-        ),
-      ),
-    );
-  }
-
-  /// Message input field
-  Widget _buildMessageInput() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: messageController,
-              decoration: InputDecoration(
-                hintText: "Type a message...",
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.send, color: Colors.blue),
-            onPressed: sendMessage,
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // Controller Selection Screen
@@ -650,9 +437,10 @@ class ControllerSelectionScreen extends StatelessWidget {
             colors: [Colors.blue.shade50, Colors.white],
           ),
         ),
-        child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 20),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Image.asset(
                 'assets/lionbit_car.png',
@@ -662,10 +450,235 @@ class ControllerSelectionScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 "Connected to: ${device.platformName}",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 40),
               _buildControllerOption(
+                context,
+                icon: Icons.lightbulb,
+                title: "LED Controller",
+                subtitle: "RGB LEDs, Brightness, Colors",
+                color: Colors.amber,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LEDControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
+                icon: Icons.directions_car,
+                title: "Vehicle Controller",
+                subtitle: "2-Wheel, 4-Wheel, Advanced",
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VehicleControllerTypeScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
+                icon: Icons.toggle_on,
+                title: "Switches",
+                subtitle: "Toggle outputs, relays, devices",
+                color: Colors.green,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SwitchesControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
+                icon: Icons.sports_esports,
+                title: "Gamepad",
+                subtitle: "Virtual joystick & action buttons",
+                color: Colors.purple,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GamepadControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
+                icon: Icons.terminal,
+                title: "Terminal",
+                subtitle: "Send custom commands",
+                color: Colors.black87,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TerminalControlScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
+                icon: Icons.mic,
+                title: "Voice Terminal",
+                subtitle: "Voice-controlled commands",
+                color: Colors.red,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VoiceTerminalScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControllerOption(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 50, color: Colors.white),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================
+// VEHICLE CONTROLLER TYPE SELECTION SCREEN
+// ============================================
+class VehicleControllerTypeScreen extends StatelessWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const VehicleControllerTypeScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Select Vehicle Type"),
+        backgroundColor: Colors.blue,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade50, Colors.white],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.directions_car, size: 100, color: Colors.blue),
+              const SizedBox(height: 20),
+              Text(
+                "Connected to: ${device.platformName}",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 40),
+              _buildVehicleTypeOption(
                 context,
                 icon: Icons.two_wheeler,
                 title: "2-Wheel Driver",
@@ -683,8 +696,8 @@ class ControllerSelectionScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 20),
-              _buildControllerOption(
+              const SizedBox(height: 15),
+              _buildVehicleTypeOption(
                 context,
                 icon: Icons.directions_car,
                 title: "4-Wheel Driver",
@@ -702,8 +715,8 @@ class ControllerSelectionScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 20),
-              _buildControllerOption(
+              const SizedBox(height: 15),
+              _buildVehicleTypeOption(
                 context,
                 icon: Icons.settings_input_component,
                 title: "Advanced Control",
@@ -721,6 +734,7 @@ class ControllerSelectionScreen extends StatelessWidget {
                   );
                 },
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -728,7 +742,7 @@ class ControllerSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildControllerOption(
+  Widget _buildVehicleTypeOption(
     BuildContext context, {
     required IconData icon,
     required String title,
@@ -736,50 +750,446 @@ class ControllerSelectionScreen extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.85,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 50, color: Colors.white),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white),
+            ],
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 50, color: Colors.white),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
+      ),
+    );
+  }
+}
+
+// ============================================
+// LED CONTROLLER SCREEN
+// ============================================
+class LEDControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const LEDControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<LEDControlScreen> createState() => _LEDControlScreenState();
+}
+
+class _LEDControlScreenState extends State<LEDControlScreen> {
+  Color currentColor = Colors.red;
+  double brightness = 255;
+  bool isOn = true;
+
+  void sendLEDCommand(String command) async {
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      print("LED Command sent: $command");
+    } catch (e) {
+      print("Error sending LED command: $e");
+    }
+  }
+
+  void updateLED() {
+    int r = currentColor.red;
+    int g = currentColor.green;
+    int b = currentColor.blue;
+    int bright = brightness.toInt();
+
+    if (!isOn) {
+      sendLEDCommand("LED:OFF");
+    } else {
+      sendLEDCommand("LED:$r,$g,$b,$bright");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("LED Controller"),
+        backgroundColor: Colors.amber,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.amber.shade50, Colors.white],
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const Icon(Icons.lightbulb, size: 100, color: Colors.amber),
+                const SizedBox(height: 10),
+                Text(
+                  "Connected to: ${widget.device.platformName}",
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 30),
+
+                // LED Status
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isOn ? currentColor : Colors.grey,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isOn
+                            ? currentColor.withOpacity(0.5)
+                            : Colors.grey.withOpacity(0.3),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    isOn ? "LED ON" : "LED OFF",
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                ),
+
+                const SizedBox(height: 30),
+
+                // On/Off Switch
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("OFF",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 10),
+                    Switch(
+                      value: isOn,
+                      onChanged: (value) {
+                        setState(() {
+                          isOn = value;
+                        });
+                        updateLED();
+                      },
+                      activeColor: Colors.amber,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text("ON",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Color Picker
+                const Text(
+                  "Select Color",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                BlockPicker(
+                  pickerColor: currentColor,
+                  onColorChanged: (color) {
+                    setState(() {
+                      currentColor = color;
+                    });
+                    updateLED();
+                  },
+                ),
+
+                const SizedBox(height: 30),
+
+                // Brightness Slider
+                const Text(
+                  "Brightness",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.brightness_low),
+                    Expanded(
+                      child: Slider(
+                        value: brightness,
+                        min: 0,
+                        max: 255,
+                        divisions: 255,
+                        label: brightness.toInt().toString(),
+                        onChanged: (value) {
+                          setState(() {
+                            brightness = value;
+                          });
+                        },
+                        onChangeEnd: (value) {
+                          updateLED();
+                        },
+                      ),
+                    ),
+                    const Icon(Icons.brightness_high),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Quick Color Buttons
+                const Text(
+                  "Quick Colors",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _buildQuickColorButton(Colors.red, "Red"),
+                    _buildQuickColorButton(Colors.green, "Green"),
+                    _buildQuickColorButton(Colors.blue, "Blue"),
+                    _buildQuickColorButton(Colors.yellow, "Yellow"),
+                    _buildQuickColorButton(Colors.purple, "Purple"),
+                    _buildQuickColorButton(Colors.orange, "Orange"),
+                    _buildQuickColorButton(Colors.cyan, "Cyan"),
+                    _buildQuickColorButton(Colors.white, "White"),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickColorButton(Color color, String label) {
+    return ElevatedButton(
+      onPressed: () {
+        setState(() {
+          currentColor = color;
+          isOn = true;
+        });
+        updateLED();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================
+// SWITCHES CONTROLLER SCREEN
+// ============================================
+class SwitchesControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const SwitchesControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<SwitchesControlScreen> createState() => _SwitchesControlScreenState();
+}
+
+class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
+  List<bool> switchStates = List.generate(8, (index) => false);
+
+  void sendSwitchCommand(int switchNum, bool state) async {
+    try {
+      String command = "SW$switchNum:${state ? 'ON' : 'OFF'}";
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      print("Switch command sent: $command");
+    } catch (e) {
+      print("Error sending switch command: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Switches Controller"),
+        backgroundColor: Colors.green,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.green.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Icon(Icons.toggle_on, size: 100, color: Colors.green),
+            const SizedBox(height: 10),
+            Text(
+              "Connected to: ${widget.device.platformName}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: ListView.builder(
+                itemCount: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemBuilder: (context, index) {
+                  return Card(
+                    elevation: 4,
+                    margin: const EdgeInsets.only(bottom: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        switchStates[index] ? Icons.power : Icons.power_off,
+                        color: switchStates[index] ? Colors.green : Colors.grey,
+                        size: 35,
+                      ),
+                      title: Text(
+                        "Switch ${index + 1}",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        switchStates[index] ? "ON" : "OFF",
+                        style: TextStyle(
+                          color:
+                              switchStates[index] ? Colors.green : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      trailing: Switch(
+                        value: switchStates[index],
+                        onChanged: (value) {
+                          setState(() {
+                            switchStates[index] = value;
+                          });
+                          sendSwitchCommand(index + 1, value);
+                        },
+                        activeColor: Colors.green,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          for (int i = 0; i < switchStates.length; i++) {
+                            switchStates[i] = true;
+                            sendSwitchCommand(i + 1, true);
+                          }
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                      child: const Text(
+                        "ALL ON",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          for (int i = 0; i < switchStates.length; i++) {
+                            switchStates[i] = false;
+                            sendSwitchCommand(i + 1, false);
+                          }
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
+                      child: const Text(
+                        "ALL OFF",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white),
           ],
         ),
       ),
@@ -787,7 +1197,747 @@ class ControllerSelectionScreen extends StatelessWidget {
   }
 }
 
-// 2-Wheel Control Screen
+// ============================================
+// GAMEPAD CONTROLLER SCREEN
+// ============================================
+class GamepadControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const GamepadControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<GamepadControlScreen> createState() => _GamepadControlScreenState();
+}
+
+class _GamepadControlScreenState extends State<GamepadControlScreen> {
+  String currentCommand = "IDLE";
+  String pressedButton = "";
+
+  void sendCommand(String command) async {
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+      setState(() {
+        currentCommand = command;
+      });
+      print("Gamepad command sent: $command");
+    } catch (e) {
+      print("Error sending gamepad command: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Gamepad Controller"),
+        backgroundColor: Colors.purple,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.purple.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Icon(Icons.sports_esports, size: 100, color: Colors.purple),
+            const SizedBox(height: 10),
+            Text(
+              "Connected to: ${widget.device.platformName}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                "Command: $currentCommand",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Left D-Pad
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "D-PAD",
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 20),
+                              _buildDPad(),
+                            ],
+                          ),
+
+                          // Right Action Buttons
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "ACTIONS",
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 20),
+                              _buildActionButtons(),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      // Bottom Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildBottomButton("L1", Colors.grey),
+                          const SizedBox(width: 20),
+                          _buildBottomButton("START", Colors.orange),
+                          const SizedBox(width: 20),
+                          _buildBottomButton("R1", Colors.grey),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDPad() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildGameButton(Icons.arrow_upward, "UP"),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildGameButton(Icons.arrow_back, "LEFT"),
+            const SizedBox(width: 10),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 10),
+            _buildGameButton(Icons.arrow_forward, "RIGHT"),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _buildGameButton(Icons.arrow_downward, "DOWN"),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildActionButton("Y", Colors.yellow),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildActionButton("X", Colors.blue),
+            const SizedBox(width: 10),
+            Container(
+              width: 50,
+              height: 50,
+            ),
+            const SizedBox(width: 10),
+            _buildActionButton("B", Colors.red),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _buildActionButton("A", Colors.green),
+      ],
+    );
+  }
+
+  Widget _buildGameButton(IconData icon, String command) {
+    bool isPressed = pressedButton == command;
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => pressedButton = command);
+        sendCommand(command);
+      },
+      onTapUp: (_) {
+        setState(() => pressedButton = "");
+        sendCommand("STOP");
+      },
+      onTapCancel: () {
+        setState(() => pressedButton = "");
+        sendCommand("STOP");
+      },
+      child: AnimatedScale(
+        scale: isPressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.purple,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: isPressed ? 2 : 5,
+                offset: Offset(0, isPressed ? 1 : 3),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 24),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, Color color) {
+    bool isPressed = pressedButton == label;
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => pressedButton = label);
+        sendCommand(label);
+      },
+      onTapUp: (_) {
+        setState(() => pressedButton = "");
+        sendCommand("STOP");
+      },
+      onTapCancel: () {
+        setState(() => pressedButton = "");
+        sendCommand("STOP");
+      },
+      child: AnimatedScale(
+        scale: isPressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: isPressed ? 2 : 5,
+                offset: Offset(0, isPressed ? 1 : 3),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(String label, Color color) {
+    bool isPressed = pressedButton == label;
+    return GestureDetector(
+      onTapDown: (_) {
+        setState(() => pressedButton = label);
+        sendCommand(label);
+      },
+      onTapUp: (_) {
+        setState(() => pressedButton = "");
+      },
+      onTapCancel: () {
+        setState(() => pressedButton = "");
+      },
+      child: AnimatedScale(
+        scale: isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: isPressed ? 2 : 5,
+                offset: Offset(0, isPressed ? 1 : 3),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================
+// TERMINAL CONTROLLER SCREEN
+// ============================================
+class TerminalControlScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const TerminalControlScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<TerminalControlScreen> createState() => _TerminalControlScreenState();
+}
+
+class _TerminalControlScreenState extends State<TerminalControlScreen> {
+  List<Map<String, dynamic>> terminalMessages = [];
+  TextEditingController commandController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for incoming data
+    widget.characteristic.lastValueStream.listen((value) {
+      if (value.isNotEmpty) {
+        String message = utf8.decode(value);
+        setState(() {
+          terminalMessages.insert(0, {
+            "text": message,
+            "isSent": false,
+          });
+        });
+      }
+    });
+  }
+
+  void sendCommand() async {
+    if (commandController.text.isEmpty) return;
+
+    String command = commandController.text.trim();
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+
+      setState(() {
+        terminalMessages.insert(0, {
+          "text": "> $command",
+          "isSent": true,
+        });
+      });
+
+      commandController.clear();
+    } catch (e) {
+      print("Error sending command: $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Terminal Controller"),
+        backgroundColor: Colors.black87,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () {
+              setState(() {
+                terminalMessages.clear();
+              });
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            color: Colors.grey[900],
+            child: Row(
+              children: [
+                const Icon(Icons.terminal, color: Colors.green),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Connected to: ${widget.device.platformName}",
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(10),
+              child: ListView.builder(
+                reverse: true,
+                itemCount: terminalMessages.length,
+                itemBuilder: (context, index) {
+                  bool isSent = terminalMessages[index]["isSent"];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      terminalMessages[index]["text"],
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Courier',
+                        color: isSent
+                            ? Colors.lightGreenAccent
+                            : Colors.lightBlueAccent,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              border: Border(top: BorderSide(color: Colors.grey[700]!)),
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  ">",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: commandController,
+                    style: const TextStyle(
+                      fontFamily: 'Courier',
+                      color: Colors.white,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: "Enter command...",
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => sendCommand(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.green),
+                  onPressed: sendCommand,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================
+// VOICE TERMINAL SCREEN
+// ============================================
+class VoiceTerminalScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const VoiceTerminalScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<VoiceTerminalScreen> createState() => _VoiceTerminalScreenState();
+}
+
+class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
+  List<Map<String, dynamic>> terminalMessages = [];
+  bool isListening = false;
+  String recognizedText = "";
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for incoming data
+    widget.characteristic.lastValueStream.listen((value) {
+      if (value.isNotEmpty) {
+        String message = utf8.decode(value);
+        setState(() {
+          terminalMessages.insert(0, {
+            "text": message,
+            "isSent": false,
+          });
+        });
+      }
+    });
+  }
+
+  void sendVoiceCommand(String command) async {
+    if (command.isEmpty) return;
+
+    try {
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: widget.characteristic.properties.writeWithoutResponse,
+      );
+
+      setState(() {
+        terminalMessages.insert(0, {
+          "text": "🎤 $command",
+          "isSent": true,
+        });
+      });
+    } catch (e) {
+      print("Error sending voice command: $e");
+    }
+  }
+
+  void toggleListening() {
+    setState(() {
+      isListening = !isListening;
+    });
+
+    if (isListening) {
+      // Note: Actual speech recognition requires speech_to_text package
+      // This is a placeholder UI
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Voice recognition requires 'speech_to_text' package"),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Voice Terminal"),
+        backgroundColor: Colors.red,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () {
+              setState(() {
+                terminalMessages.clear();
+              });
+            },
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.red.shade50, Colors.white],
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(15),
+              color: Colors.red[100],
+              child: Row(
+                children: [
+                  const Icon(Icons.mic, color: Colors.red),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Connected to: ${widget.device.platformName}",
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Microphone Button
+            GestureDetector(
+              onTapDown: (_) => toggleListening(),
+              onTapUp: (_) => toggleListening(),
+              onTapCancel: () {
+                if (isListening) toggleListening();
+              },
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  color: isListening ? Colors.red : Colors.grey[300],
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: isListening
+                          ? Colors.red.withOpacity(0.5)
+                          : Colors.grey.withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  isListening ? Icons.mic : Icons.mic_none,
+                  size: 80,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              isListening ? "Listening..." : "Tap to speak",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isListening ? Colors.red : Colors.grey,
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Quick Voice Commands
+            const Text(
+              "Quick Commands",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _buildQuickCommand("Forward"),
+                _buildQuickCommand("Backward"),
+                _buildQuickCommand("Left"),
+                _buildQuickCommand("Right"),
+                _buildQuickCommand("Stop"),
+                _buildQuickCommand("LED On"),
+                _buildQuickCommand("LED Off"),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Terminal Messages
+            const Text(
+              "Message Log",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red, width: 2),
+                ),
+                child: ListView.builder(
+                  reverse: true,
+                  itemCount: terminalMessages.length,
+                  itemBuilder: (context, index) {
+                    bool isSent = terminalMessages[index]["isSent"];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        terminalMessages[index]["text"],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontFamily: 'Courier',
+                          color: isSent
+                              ? Colors.lightGreenAccent
+                              : Colors.lightBlueAccent,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickCommand(String command) {
+    return ElevatedButton(
+      onPressed: () => sendVoiceCommand(command),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      ),
+      child: Text(
+        command,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
+}
+
+// ============================================
+// CAR CONTROLLER (4-WHEEL) - Keep existing
+// ============================================
 class TwoWheelControlScreen extends StatefulWidget {
   final BluetoothDevice device;
   final BluetoothCharacteristic characteristic;
@@ -804,6 +1954,9 @@ class TwoWheelControlScreen extends StatefulWidget {
 
 class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
   String currentDirection = "STOP";
+  String pressedButton = "";
+  bool isHornActive = false;
+  bool isLightActive = false;
 
   void sendCommand(String command) async {
     try {
@@ -862,16 +2015,49 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
             ),
             const SizedBox(height: 30),
             Expanded(
-              child: Center(
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Forward/Accelerate button
-                    _buildControlButton(
-                      icon: Icons.arrow_upward,
-                      label: "FORWARD",
-                      onTapDown: () => sendCommand("F"),
-                      onTapUp: () => sendCommand("S"),
+                    const SizedBox(height: 20),
+                    // Forward button with Horn and Light on sides
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.music_note,
+                          label: isHornActive ? "HORN ON" : "HORN OFF",
+                          onTap: () {
+                            setState(() {
+                              isHornActive = !isHornActive;
+                            });
+                            sendCommand(isHornActive ? "HORN:ON" : "HORN:OFF");
+                          },
+                          color: isHornActive ? Colors.amber : Colors.grey,
+                          isActive: isHornActive,
+                        ),
+                        const SizedBox(width: 20),
+                        _buildControlButton(
+                          icon: Icons.arrow_upward,
+                          label: "FORWARD",
+                          onTapDown: () => sendCommand("F"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                        const SizedBox(width: 20),
+                        _buildActionButton(
+                          icon: Icons.lightbulb,
+                          label: isLightActive ? "LIGHT ON" : "LIGHT OFF",
+                          onTap: () {
+                            setState(() {
+                              isLightActive = !isLightActive;
+                            });
+                            sendCommand(
+                                isLightActive ? "LIGHT:ON" : "LIGHT:OFF");
+                          },
+                          color: isLightActive ? Colors.yellow : Colors.grey,
+                          isActive: isLightActive,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 40),
                     // Left Lean and Right Lean
@@ -909,6 +2095,7 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
                       onTapDown: () => sendCommand("B"),
                       onTapUp: () => sendCommand("S"),
                     ),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -927,41 +2114,105 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
     required VoidCallback onTapUp,
     Color? color,
   }) {
+    bool isPressed = pressedButton == label;
     return GestureDetector(
-      onTapDown: (_) => onTapDown(),
-      onTapUp: (_) => onTapUp(),
-      onTapCancel: onTapUp,
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: color ?? Colors.orange,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+      onTapDown: (_) {
+        setState(() => pressedButton = label);
+        onTapDown();
+      },
+      onTapUp: (_) {
+        setState(() => pressedButton = "");
+        onTapUp();
+      },
+      onTapCancel: () {
+        setState(() => pressedButton = "");
+        onTapUp();
+      },
+      child: AnimatedScale(
+        scale: isPressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: color ?? Colors.orange,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 40, color: Colors.white),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+    bool isActive = false,
+  }) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: AnimatedScale(
+            scale: isActive ? 0.95 : 1.0,
+            duration: const Duration(milliseconds: 100),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: isActive ? 8 : 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 36,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -983,6 +2234,9 @@ class FourWheelControlScreen extends StatefulWidget {
 
 class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
   String currentDirection = "STOP";
+  String pressedButton = "";
+  bool isHornActive = false;
+  bool isLightActive = false;
 
   void sendCommand(String command) async {
     try {
@@ -1050,12 +2304,44 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Forward button
-                    _buildControlButton(
-                      icon: Icons.arrow_upward,
-                      label: "FORWARD",
-                      onTapDown: () => sendCommand("F"),
-                      onTapUp: () => sendCommand("S"),
+                    // Forward button with Horn and Light on sides
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildActionButton(
+                          icon: Icons.music_note,
+                          label: isHornActive ? "HORN ON" : "HORN OFF",
+                          onTap: () {
+                            setState(() {
+                              isHornActive = !isHornActive;
+                            });
+                            sendCommand(isHornActive ? "HORN:ON" : "HORN:OFF");
+                          },
+                          color: isHornActive ? Colors.amber : Colors.grey,
+                          isActive: isHornActive,
+                        ),
+                        const SizedBox(width: 20),
+                        _buildControlButton(
+                          icon: Icons.arrow_upward,
+                          label: "FORWARD",
+                          onTapDown: () => sendCommand("F"),
+                          onTapUp: () => sendCommand("S"),
+                        ),
+                        const SizedBox(width: 20),
+                        _buildActionButton(
+                          icon: Icons.lightbulb,
+                          label: isLightActive ? "LIGHT ON" : "LIGHT OFF",
+                          onTap: () {
+                            setState(() {
+                              isLightActive = !isLightActive;
+                            });
+                            sendCommand(
+                                isLightActive ? "LIGHT:ON" : "LIGHT:OFF");
+                          },
+                          color: isLightActive ? Colors.yellow : Colors.grey,
+                          isActive: isLightActive,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     // Left, Stop, Right
@@ -1111,40 +2397,104 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
     required VoidCallback onTapUp,
     Color? color,
   }) {
+    bool isPressed = pressedButton == label;
     return GestureDetector(
-      onTapDown: (_) => onTapDown(),
-      onTapUp: (_) => onTapUp(),
-      onTapCancel: onTapUp,
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: color ?? Colors.blue,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+      onTapDown: (_) {
+        setState(() => pressedButton = label);
+        onTapDown();
+      },
+      onTapUp: (_) {
+        setState(() => pressedButton = "");
+        onTapUp();
+      },
+      onTapCancel: () {
+        setState(() => pressedButton = "");
+        onTapUp();
+      },
+      child: AnimatedScale(
+        scale: isPressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: color ?? Colors.blue,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 40, color: Colors.white),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required Color color,
+    bool isActive = false,
+  }) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: AnimatedScale(
+            scale: isActive ? 0.95 : 1.0,
+            duration: const Duration(milliseconds: 100),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: isActive ? 8 : 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                icon,
+                size: 36,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1167,6 +2517,9 @@ class AdvancedControlScreen extends StatefulWidget {
 class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
   String currentCommand = "IDLE";
   bool isArmed = false;
+  String pressedButton = "";
+  double speedSlider = 0.0;
+  double steeringSlider = 0.0;
 
   void sendCommand(String command) async {
     try {
@@ -1190,6 +2543,14 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
     });
   }
 
+  void sendSliderCommand() {
+    if (isArmed) {
+      int speed = speedSlider.toInt();
+      int steering = steeringSlider.toInt();
+      sendCommand("SLIDER:$speed,$steering");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1205,177 +2566,312 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
             colors: [Colors.red.shade50, Colors.white],
           ),
         ),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            const Icon(Icons.settings_input_component,
-                size: 100, color: Colors.red),
-            const SizedBox(height: 10),
-            Text(
-              "Connected to: ${widget.device.platformName}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: isArmed ? Colors.red.shade100 : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(20),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Icon(Icons.settings_input_component,
+                  size: 100, color: Colors.red),
+              const SizedBox(height: 10),
+              Text(
+                "Connected to: ${widget.device.platformName}",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Text(
-                isArmed ? "ARMED - $currentCommand" : "DISARMED - Safe Mode",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isArmed ? Colors.red : Colors.green,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Arm/Disarm Toggle
-            ElevatedButton.icon(
-              onPressed: toggleArm,
-              icon: Icon(isArmed ? Icons.shield : Icons.shield_outlined),
-              label: Text(isArmed ? "DISARM SYSTEM" : "ARM SYSTEM"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isArmed ? Colors.green : Colors.red,
-                foregroundColor: Colors.white,
+              const SizedBox(height: 10),
+              Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Primary Movement Controls
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildControlButton(
-                          icon: Icons.north_west,
-                          label: "FL",
-                          command: "FL",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.arrow_upward,
-                          label: "FWD",
-                          command: "F",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.north_east,
-                          label: "FR",
-                          command: "FR",
-                          enabled: isArmed,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildControlButton(
-                          icon: Icons.arrow_back,
-                          label: "LEFT",
-                          command: "L",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.stop,
-                          label: "STOP",
-                          command: "S",
-                          enabled: true,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.arrow_forward,
-                          label: "RIGHT",
-                          command: "R",
-                          enabled: isArmed,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildControlButton(
-                          icon: Icons.south_west,
-                          label: "BL",
-                          command: "BL",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.arrow_downward,
-                          label: "BACK",
-                          command: "B",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 10),
-                        _buildControlButton(
-                          icon: Icons.south_east,
-                          label: "BR",
-                          command: "BR",
-                          enabled: isArmed,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-                    // Additional Advanced Controls
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildActionButton(
-                          icon: Icons.rotate_left,
-                          label: "ROTATE L",
-                          command: "RL",
-                          enabled: isArmed,
-                        ),
-                        const SizedBox(width: 20),
-                        _buildActionButton(
-                          icon: Icons.rotate_right,
-                          label: "ROTATE R",
-                          command: "RR",
-                          enabled: isArmed,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildActionButton(
-                          icon: Icons.flash_on,
-                          label: "BOOST",
-                          command: "BOOST",
-                          enabled: isArmed,
-                          color: Colors.amber,
-                        ),
-                        const SizedBox(width: 20),
-                        _buildActionButton(
-                          icon: Icons.light_mode,
-                          label: "LIGHTS",
-                          command: "LIGHT",
-                          enabled: isArmed,
-                          color: Colors.yellow,
-                        ),
-                      ],
-                    ),
-                  ],
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isArmed ? Colors.red.shade100 : Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isArmed ? "ARMED - $currentCommand" : "DISARMED - Safe Mode",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isArmed ? Colors.red : Colors.green,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+              // Arm/Disarm Toggle
+              ElevatedButton.icon(
+                onPressed: toggleArm,
+                icon: Icon(isArmed ? Icons.shield : Icons.shield_outlined),
+                label: Text(isArmed ? "DISARM SYSTEM" : "ARM SYSTEM"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isArmed ? Colors.green : Colors.red,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Primary Movement Controls
+              Column(
+                children: [
+                  // Primary Movement Controls
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildControlButton(
+                        icon: Icons.north_west,
+                        label: "FL",
+                        command: "FL",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.arrow_upward,
+                        label: "FWD",
+                        command: "F",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.north_east,
+                        label: "FR",
+                        command: "FR",
+                        enabled: isArmed,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildControlButton(
+                        icon: Icons.arrow_back,
+                        label: "LEFT",
+                        command: "L",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.stop,
+                        label: "STOP",
+                        command: "S",
+                        enabled: true,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.arrow_forward,
+                        label: "RIGHT",
+                        command: "R",
+                        enabled: isArmed,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildControlButton(
+                        icon: Icons.south_west,
+                        label: "BL",
+                        command: "BL",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.arrow_downward,
+                        label: "BACK",
+                        command: "B",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 10),
+                      _buildControlButton(
+                        icon: Icons.south_east,
+                        label: "BR",
+                        command: "BR",
+                        enabled: isArmed,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  // Additional Advanced Controls
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.rotate_left,
+                        label: "ROTATE L",
+                        command: "RL",
+                        enabled: isArmed,
+                      ),
+                      const SizedBox(width: 20),
+                      _buildActionButton(
+                        icon: Icons.rotate_right,
+                        label: "ROTATE R",
+                        command: "RR",
+                        enabled: isArmed,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.flash_on,
+                        label: "BOOST",
+                        command: "BOOST",
+                        enabled: isArmed,
+                        color: Colors.amber,
+                      ),
+                      const SizedBox(width: 20),
+                      _buildActionButton(
+                        icon: Icons.light_mode,
+                        label: "LIGHTS",
+                        command: "LIGHT",
+                        enabled: isArmed,
+                        color: Colors.yellow,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  // Slider Controls
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Analog Controls",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Speed Slider
+                        Row(
+                          children: [
+                            const Icon(Icons.speed, color: Colors.red),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Speed: ${speedSlider.toInt()}",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderThemeData(
+                                      activeTrackColor: Colors.red,
+                                      inactiveTrackColor:
+                                          Colors.red.withOpacity(0.3),
+                                      thumbColor: Colors.red,
+                                      overlayColor: Colors.red.withOpacity(0.2),
+                                      thumbShape: const RoundSliderThumbShape(
+                                          enabledThumbRadius: 12),
+                                    ),
+                                    child: Slider(
+                                      value: speedSlider,
+                                      min: -100,
+                                      max: 100,
+                                      divisions: 200,
+                                      onChanged: isArmed
+                                          ? (value) {
+                                              setState(() {
+                                                speedSlider = value;
+                                              });
+                                            }
+                                          : null,
+                                      onChangeEnd: (value) {
+                                        sendSliderCommand();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        // Steering Slider
+                        Row(
+                          children: [
+                            const Icon(Icons.settings_ethernet,
+                                color: Colors.red),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Steering: ${steeringSlider.toInt()}",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SliderTheme(
+                                    data: SliderThemeData(
+                                      activeTrackColor: Colors.red,
+                                      inactiveTrackColor:
+                                          Colors.red.withOpacity(0.3),
+                                      thumbColor: Colors.red,
+                                      overlayColor: Colors.red.withOpacity(0.2),
+                                      thumbShape: const RoundSliderThumbShape(
+                                          enabledThumbRadius: 12),
+                                    ),
+                                    child: Slider(
+                                      value: steeringSlider,
+                                      min: -100,
+                                      max: 100,
+                                      divisions: 200,
+                                      onChanged: isArmed
+                                          ? (value) {
+                                              setState(() {
+                                                steeringSlider = value;
+                                              });
+                                            }
+                                          : null,
+                                      onChangeEnd: (value) {
+                                        sendSliderCommand();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        // Reset Button
+                        ElevatedButton.icon(
+                          onPressed: isArmed
+                              ? () {
+                                  setState(() {
+                                    speedSlider = 0.0;
+                                    steeringSlider = 0.0;
+                                  });
+                                  sendSliderCommand();
+                                }
+                              : null,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text("Reset Sliders"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[700],
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1388,42 +2884,62 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
     required bool enabled,
     Color? color,
   }) {
+    bool isPressed = pressedButton == label;
     return GestureDetector(
-      onTapDown: enabled ? (_) => sendCommand(command) : null,
-      onTapUp: enabled ? (_) => sendCommand("S") : null,
-      onTapCancel: enabled ? () => sendCommand("S") : null,
-      child: Opacity(
-        opacity: enabled ? 1.0 : 0.3,
-        child: Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: color ?? Colors.red,
-            shape: BoxShape.circle,
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 30, color: Colors.white),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+      onTapDown: enabled
+          ? (_) {
+              setState(() => pressedButton = label);
+              sendCommand(command);
+            }
+          : null,
+      onTapUp: enabled
+          ? (_) {
+              setState(() => pressedButton = "");
+              sendCommand("S");
+            }
+          : null,
+      onTapCancel: enabled
+          ? () {
+              setState(() => pressedButton = "");
+              sendCommand("S");
+            }
+          : null,
+      child: AnimatedScale(
+        scale: isPressed ? 0.85 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.3,
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: color ?? Colors.red,
+              shape: BoxShape.circle,
+              boxShadow: enabled
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 30, color: Colors.white),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1437,39 +2953,52 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
     required bool enabled,
     Color? color,
   }) {
+    bool isPressed = pressedButton == label;
     return GestureDetector(
-      onTap: enabled ? () => sendCommand(command) : null,
-      child: Opacity(
-        opacity: enabled ? 1.0 : 0.3,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          decoration: BoxDecoration(
-            color: color ?? Colors.red,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 24, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+      onTap: enabled
+          ? () {
+              setState(() => pressedButton = label);
+              sendCommand(command);
+              Future.delayed(const Duration(milliseconds: 150), () {
+                if (mounted) setState(() => pressedButton = "");
+              });
+            }
+          : null,
+      child: AnimatedScale(
+        scale: isPressed ? 0.9 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.3,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            decoration: BoxDecoration(
+              color: color ?? Colors.red,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: enabled
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 24, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
