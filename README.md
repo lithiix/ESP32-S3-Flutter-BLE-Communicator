@@ -1,6 +1,6 @@
 # ESP32-S3 BLE Flutter Application
 
-A Bluetooth Low Energy (BLE) communication system demonstrating bidirectional data exchange between an ESP32-S3 development board and a Flutter mobile application.
+A comprehensive Bluetooth Low Energy (BLE) communication system with multiple control interfaces for ESP32-S3 devices, featuring voice recognition, gamepad controls, and advanced vehicle control systems.
 
 ## Features
 
@@ -11,24 +11,76 @@ A Bluetooth Low Energy (BLE) communication system demonstrating bidirectional da
 - Real-time notification handling and display
 - Intuitive user interface with device scanning capabilities
 - Graceful connection termination and error handling
-- Automatic permission handling for Bluetooth and location services
+- Automatic permission handling for Bluetooth, location, and microphone services
+- Direct navigation to controller selection after BLE connection
 
-### Chat Interface
+### LED Controller
 
-- Real-time bidirectional chat communication with ESP32 devices
-- Message history display with visual differentiation between sent and received messages
-- Chat bubble UI with color-coded messages (blue for sent, gray for received)
-- Clear chat functionality to reset conversation history
-- Message input with send button for easy text transmission
+- RGB color picker with real-time color selection
+- Brightness slider control (0-100%)
+- On/Off toggle for LED control
+- Live color preview
+- Smooth gradient UI design
 
-### Car Control Interface
+### Vehicle Controller
 
-- Dedicated car control screen with joystick-style controls
-- Directional commands: Forward, Backward, Left, Right, and Stop
-- Touch-responsive control buttons with visual feedback
-- Real-time direction status display
-- Gradient UI design with LionBit branding
-- Automatic command sending on button press/release
+Three specialized vehicle control modes:
+
+**2-Wheel Vehicle Control**
+
+- Directional controls: Forward, Backward, Left, Right, Stop
+- Circular horn and light buttons with toggle functionality
+- Press animations on all control buttons
+- Real-time status indicators
+
+**4-Wheel Vehicle Control**
+
+- Enhanced directional controls for four-wheel vehicles
+- Circular horn and light buttons positioned beside forward control
+- Toggle-based horn and light activation
+- Animated button feedback
+
+**Advanced Vehicle Control**
+
+- Speed control slider (-100 to +100)
+- Steering control slider (-100 to +100)
+- Real-time slider value display
+- Precise control for advanced maneuvers
+
+### Gamepad Controller
+
+- D-Pad controls: Up, Down, Left, Right
+- Action buttons: A, B, X, Y
+- Shoulder buttons: L1, R1, L2, R2
+- Start and Select buttons
+- Press animations on all buttons
+- Optimized button sizing (50x50) for comfortable use
+- Scrollable interface to prevent overflow
+
+### Terminal Controller
+
+- Command-line interface for direct ESP32 communication
+- Message history with color-coded sent/received messages
+- Custom command input
+- Clear terminal functionality
+- Scrollable message log
+
+### Voice Terminal Controller
+
+- **Real-time speech recognition** using speech_to_text package
+- Voice-to-command conversion
+- Visual listening indicator with microphone animation
+- Quick command buttons: Forward, Backward, Left, Right, Stop, LED On, LED Off, Clear
+- Real-time recognized text display
+- Message log with voice command history
+- Microphone permission handling with user-friendly error messages
+
+### Switches Controller
+
+- 8 independent toggle switches
+- Real-time switch state management
+- Visual feedback for each switch
+- Bulk control capability
 
 ### User Experience
 
@@ -40,10 +92,10 @@ A Bluetooth Low Energy (BLE) communication system demonstrating bidirectional da
 
 ## Screenshots
 
-| Onboarding Screen                                                                            | Device Scanning                                                                               | Chat Interface                 | Car Control                     |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------- |
-| Welcome screen with LionBit branding                                                         | Discover nearby BLE devices                                                                   | Real-time messaging            | Joystick-style controls         |
-| ![scanning](https://github.com/user-attachments/assets/f78d2c8b-cdfb-4ff1-9090-4c8d77a1085c) | ![version 1](https://github.com/user-attachments/assets/6e8ff4dd-a590-4ed6-ae28-5d9854c94951) | _Chat UI with message bubbles_ | _Directional control interface_ |
+| Onboarding Screen                                                                            | Device Scanning                                                                               | Controller Selection        | Vehicle Controls               |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------ |
+| Welcome screen with LionBit branding                                                         | Discover nearby BLE devices                                                                   | Choose from 6 controllers   | Advanced vehicle controls      |
+| ![scanning](https://github.com/user-attachments/assets/f78d2c8b-cdfb-4ff1-9090-4c8d77a1085c) | ![version 1](https://github.com/user-attachments/assets/6e8ff4dd-a590-4ed6-ae28-5d9854c94951) | _6 specialized controllers_ | _LED, Vehicle, Gamepad, Voice_ |
 
 ## Project Structure
 
@@ -119,11 +171,16 @@ ESP32-S3-BLE-App/
    - `BLUETOOTH_SCAN`
    - `BLUETOOTH_CONNECT`
    - `ACCESS_FINE_LOCATION`
+   - `ACCESS_COARSE_LOCATION`
+   - `RECORD_AUDIO` (for voice terminal)
+   - `INTERNET` (for speech recognition)
 
    **iOS**: Add required keys to `ios/Runner/Info.plist`:
 
    - `NSBluetoothAlwaysUsageDescription`
    - `NSBluetoothPeripheralUsageDescription`
+   - `NSMicrophoneUsageDescription` (for voice terminal)
+   - `NSSpeechRecognitionUsageDescription` (for voice terminal)
 
 5. **Deploy Application**
 
@@ -136,51 +193,106 @@ ESP32-S3-BLE-App/
 ### Getting Started
 
 1. Launch the application to see the onboarding screen
-2. Tap "Get Started" to proceed to the main BLE interface
+2. Tap "Get Started" to proceed to the BLE scanning interface
 
 ### Connecting to ESP32-S3
 
 1. Power on your ESP32-S3 device
 2. The app will automatically start scanning for nearby BLE devices
 3. Select your device from the discovered devices list (LionBit_BLE devices will show with a custom icon)
-4. Wait for the connection to establish and services to be discovered
+4. Wait for connection and service discovery (loading screen will appear)
+5. Once connected, you'll be directed to the Controller Selection screen
 
-### Chat Mode
+### Choosing a Controller
 
-1. Once connected, the chat interface will appear
-2. Enter your message in the text input field at the bottom
-3. Tap the send button or press Enter to transmit
-4. Messages you send appear in blue bubbles on the right
-5. Messages received from ESP32 appear in gray bubbles on the left
-6. Use "Clear Chat" button to reset the conversation history
+Select from 6 specialized control interfaces:
 
-### Car Control Mode
+1. **LED Controller** - RGB color and brightness control
+2. **Vehicle Controller** - Choose from 2-wheel, 4-wheel, or advanced controls
+3. **Switches** - 8 independent toggle switches
+4. **Gamepad** - Full gamepad interface with D-pad and action buttons
+5. **Terminal** - Command-line interface
+6. **Voice Terminal** - Voice-controlled commands
 
-1. From the chat interface, tap the "Car Control" button
-2. Use the joystick-style interface to control your device:
-   - **Forward**: Tap and hold the up arrow
-   - **Backward**: Tap and hold the down arrow
-   - **Left**: Tap and hold the left arrow
-   - **Right**: Tap and hold the right arrow
-   - **Stop**: Release any directional button or tap the stop button
-3. The current direction is displayed at the top
-4. Commands are automatically sent while buttons are pressed
+### Using LED Controller
+
+1. Tap the color picker to select your desired RGB color
+2. Adjust brightness using the slider (0-100%)
+3. Toggle the LED on/off using the power button
+4. Colors are sent to ESP32 in real-time
+
+### Using Vehicle Controllers
+
+**2-Wheel / 4-Wheel Mode:**
+
+1. Use directional arrows to control movement (Forward, Backward, Left, Right)
+2. Press and hold buttons for continuous movement
+3. Tap the circular horn button (left) to toggle horn ON/OFF
+4. Tap the circular light button (right) to toggle lights ON/OFF
+5. Tap Stop to halt all movement
+6. All buttons animate on press for tactile feedback
+
+**Advanced Mode:**
+
+1. Use the speed slider to control velocity (-100 to +100)
+2. Use the steering slider to control direction (-100 to +100)
+3. Drag sliders for precise control
+4. Values update in real-time
+
+### Using Gamepad Controller
+
+1. Use D-pad for directional input (Up, Down, Left, Right)
+2. Press action buttons (A, B, X, Y) for functions
+3. Use shoulder buttons (L1, R1, L2, R2) for additional controls
+4. Start and Select buttons for menu functions
+5. All buttons provide visual press feedback
+6. Scroll for access to all controls
+
+### Using Terminal Controller
+
+1. Type commands in the input field
+2. Press send to transmit to ESP32
+3. View message history in the terminal log
+4. Clear terminal using the delete icon
+5. Sent messages appear in green, received in blue
+
+### Using Voice Terminal Controller
+
+1. **Grant Microphone Permission**: On first use, allow microphone access when prompted
+2. **Voice Control**: Tap and hold the microphone button to speak
+3. **View Recognition**: Watch your spoken words appear in real-time
+4. **Auto-Send**: Commands are automatically sent when you finish speaking
+5. **Quick Commands**: Use preset buttons for instant commands:
+   - Forward, Backward, Left, Right, Stop
+   - LED On, LED Off
+   - Clear (clears message log)
+6. **Message Log**: View all sent voice commands in the terminal-style log
+
+### Using Switches Controller
+
+1. Toggle any of the 8 switches ON/OFF
+2. Each switch sends its state to ESP32
+3. Visual feedback shows current state
+4. Control multiple switches independently
 
 ### Disconnecting
 
-Press the "Disconnect" button in the chat interface to terminate the BLE connection safely and return to the device scanning screen.
+Use the back button to return to controller selection, or disconnect from the BLE scanning screen to terminate the connection safely.
 
 ## Troubleshooting
 
-| Issue                          | Resolution                                                                                                                                                                                       |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ESP32 not detected during scan | Verify ESP32 is powered and advertising. Check Serial Monitor output. Restart device if necessary.                                                                                               |
-| Application crashes on launch  | Verify all Flutter dependencies are properly installed. Run `flutter doctor` to check configuration.                                                                                             |
-| Permission errors on Android   | The app will prompt for permissions on first launch. If denied, manually grant Bluetooth and Location permissions in device settings or use the "Open Settings" option in the permission dialog. |
-| BLE scan frequency errors      | Implement scan throttling with minimum 10-second intervals between scans.                                                                                                                        |
-| Cannot send messages           | Ensure the device is properly connected and services are discovered. Check for the green "Device ready" snackbar message. Verify UUIDs match between app and ESP32 firmware.                     |
-| Car control not responding     | Verify the ESP32 firmware is programmed to handle directional commands (F, B, L, R, S). Check Serial Monitor for received commands.                                                              |
-| Chat messages not appearing    | Ensure BLE notifications are enabled on the characteristic. Check that the ESP32 is sending data correctly.                                                                                      |
+| Issue                             | Resolution                                                                                                                                                                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ESP32 not detected during scan    | Verify ESP32 is powered and advertising. Check Serial Monitor output. Restart device if necessary.                                                                                                 |
+| Application crashes on launch     | Verify all Flutter dependencies are properly installed. Run `flutter doctor` to check configuration.                                                                                               |
+| Permission errors on Android      | The app will prompt for permissions on first launch. If denied, manually grant Bluetooth, Location, and Microphone permissions in device settings or use the "Open Settings" option in the dialog. |
+| BLE scan frequency errors         | Implement scan throttling with minimum 10-second intervals between scans.                                                                                                                          |
+| Cannot send commands              | Ensure the device is properly connected and services are discovered. Check for the green "Device ready" snackbar message. Verify UUIDs match between app and ESP32 firmware.                       |
+| Voice recognition not available   | Ensure microphone permission is granted. Rebuild the app after updating permissions in AndroidManifest.xml and Info.plist. Check device speech recognition support.                                |
+| Voice commands not recognized     | Speak clearly and wait for the listening indicator. Ensure a stable internet connection for speech processing. Check microphone hardware.                                                          |
+| Controller buttons not responding | Verify the ESP32 firmware is programmed to handle the specific commands. Check Serial Monitor for received commands.                                                                               |
+| Gamepad buttons overflow          | Scroll the gamepad interface to access all buttons. All buttons are within a scrollable container.                                                                                                 |
+| LED colors not changing           | Verify ESP32 firmware supports RGB commands. Check that LED hardware is connected properly.                                                                                                        |
 
 ## Contributing
 
@@ -196,10 +308,12 @@ Areas for contribution include:
 
 - Bug reports and fixes
 - Performance optimizations
-- Feature enhancements (speed control, additional car functions, etc.)
+- Feature enhancements (additional controllers, custom command macros, etc.)
 - UI/UX improvements
+- Voice recognition accuracy improvements
 - Documentation improvements
 - Support for additional BLE devices
+- Multi-language support
 
 ## Technical Details
 
@@ -212,20 +326,49 @@ The application uses the following UUIDs (ensure your ESP32 firmware matches):
 
 ### Control Commands
 
-The car control interface sends single-character commands:
+The controllers send various command formats:
+
+**Vehicle Controllers:**
 
 - `F` - Forward
 - `B` - Backward
 - `L` - Left
 - `R` - Right
 - `S` - Stop
+- `HORN:ON` / `HORN:OFF` - Horn control
+- `LIGHT:ON` / `LIGHT:OFF` - Light control
+- `SPEED:<value>` - Speed control (-100 to 100)
+- `STEER:<value>` - Steering control (-100 to 100)
+
+**LED Controller:**
+
+- `RGB:<r>,<g>,<b>` - Set RGB color (0-255 each)
+- `BRIGHTNESS:<value>` - Set brightness (0-100)
+- `LED:ON` / `LED:OFF` - LED power control
+
+**Gamepad Controller:**
+
+- `UP`, `DOWN`, `LEFT`, `RIGHT` - D-pad directions
+- `A`, `B`, `X`, `Y` - Action buttons
+- `L1`, `R1`, `L2`, `R2` - Shoulder buttons
+- `START`, `SELECT` - Menu buttons
+
+**Switches Controller:**
+
+- `SWITCH<n>:ON` / `SWITCH<n>:OFF` - Individual switch control (n = 1-8)
+
+**Terminal/Voice Terminal:**
+
+- Custom text commands as entered/spoken
 
 ### Dependencies
 
 Key Flutter packages used:
 
-- `flutter_blue_plus`: BLE communication
-- `permission_handler`: Runtime permissions management
+- `flutter_blue_plus: ^1.35.3` - BLE communication
+- `permission_handler: ^11.4.0` - Runtime permissions management
+- `flutter_colorpicker: ^1.1.0` - Color selection for LED controller
+- `speech_to_text: ^7.0.0` - Voice recognition for voice terminal
 
 ## License
 
