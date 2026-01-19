@@ -1586,11 +1586,12 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Terminal Controller"),
-        backgroundColor: Colors.black87,
+        title: const Text("Terminal Controller",
+            style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color.fromARGB(221, 0, 0, 0),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: const Icon(Icons.delete, color: Colors.white),
             onPressed: () {
               setState(() {
                 terminalMessages.clear();
