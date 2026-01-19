@@ -1718,7 +1718,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
   void initState() {
     super.initState();
     _initSpeech();
-    
+
     // Listen for incoming data
     widget.characteristic.lastValueStream.listen((value) {
       if (value.isNotEmpty) {
@@ -1740,7 +1740,8 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Microphone permission is required for voice commands"),
+            content:
+                Text("Microphone permission is required for voice commands"),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -1776,7 +1777,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
         }
       },
     );
-    
+
     if (!_speechAvailable && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1993,6 +1994,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
                 _buildQuickCommand("Stop"),
                 _buildQuickCommand("LED On"),
                 _buildQuickCommand("LED Off"),
+                _buildQuickCommand("Clear"),
               ],
             ),
 
