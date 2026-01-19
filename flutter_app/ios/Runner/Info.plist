@@ -49,5 +49,9 @@
     <string>App requires Bluetooth access</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>App requires Bluetooth access to communicate with ESP32</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs access to the microphone for voice commands</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>This app needs speech recognition to process voice commands</string>
   </dict>
 </plist>

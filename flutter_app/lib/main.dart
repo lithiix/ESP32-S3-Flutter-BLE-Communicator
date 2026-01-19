@@ -3,6 +3,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:convert';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 void main() {
   runApp(const MyApp());
@@ -1710,10 +1711,14 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
   List<Map<String, dynamic>> terminalMessages = [];
   bool isListening = false;
   String recognizedText = "";
+  late stt.SpeechToText _speech;
+  bool _speechAvailable = false;
 
   @override
   void initState() {
     super.initState();
+    _initSpeech();
+    
     // Listen for incoming data
     widget.characteristic.lastValueStream.listen((value) {
       if (value.isNotEmpty) {
@@ -1726,6 +1731,60 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
         });
       }
     });
+  }
+
+  void _initSpeech() async {
+    // Request microphone permission
+    var status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Microphone permission is required for voice commands"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    _speech = stt.SpeechToText();
+    _speechAvailable = await _speech.initialize(
+      onError: (error) {
+        print('Speech recognition error: $error');
+        if (mounted) {
+          setState(() {
+            isListening = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Speech error: ${error.errorMsg}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      onStatus: (status) {
+        print('Speech recognition status: $status');
+        if (status == 'done' || status == 'notListening') {
+          if (mounted) {
+            setState(() {
+              isListening = false;
+            });
+          }
+        }
+      },
+    );
+    
+    if (!_speechAvailable && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Speech recognition not available on this device"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   void sendVoiceCommand(String command) async {
@@ -1748,21 +1807,59 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
     }
   }
 
-  void toggleListening() {
-    setState(() {
-      isListening = !isListening;
-    });
-
-    if (isListening) {
-      // Note: Actual speech recognition requires speech_to_text package
-      // This is a placeholder UI
+  void toggleListening() async {
+    if (!_speechAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Voice recognition requires 'speech_to_text' package"),
-          duration: Duration(seconds: 2),
+          content: Text("Speech recognition not available"),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+
+    if (isListening) {
+      // Stop listening
+      await _speech.stop();
+      setState(() {
+        isListening = false;
+      });
+    } else {
+      // Start listening
+      setState(() {
+        isListening = true;
+        recognizedText = "";
+      });
+
+      await _speech.listen(
+        onResult: (result) {
+          setState(() {
+            recognizedText = result.recognizedWords;
+          });
+
+          // If speech is finalized, send the command
+          if (result.finalResult) {
+            if (recognizedText.isNotEmpty) {
+              sendVoiceCommand(recognizedText);
+            }
+            setState(() {
+              isListening = false;
+              recognizedText = "";
+            });
+          }
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+        partialResults: true,
+        cancelOnError: true,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _speech.stop();
+    super.dispose();
   }
 
   @override
@@ -1853,6 +1950,29 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
                 color: isListening ? Colors.red : Colors.grey,
               ),
             ),
+
+            // Display recognized text while listening
+            if (recognizedText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: Text(
+                    recognizedText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 30),
 
