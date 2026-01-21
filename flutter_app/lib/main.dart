@@ -533,6 +533,25 @@ class ControllerSelectionScreen extends StatelessWidget {
               const SizedBox(height: 15),
               _buildControllerOption(
                 context,
+                icon: Icons.sensors,
+                title: "Sensor Display",
+                subtitle: "View digital & analog sensor readings",
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SensorDisplayScreen(
+                        device: device,
+                        characteristic: characteristic,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 15),
+              _buildControllerOption(
+                context,
                 icon: Icons.terminal,
                 title: "Terminal",
                 subtitle: "Send custom commands",
@@ -1056,11 +1075,11 @@ class SwitchesControlScreen extends StatefulWidget {
 }
 
 class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
-  List<bool> switchStates = List.generate(8, (index) => false);
+  List<bool> switchStates = List.generate(11, (index) => false);
 
-  void sendSwitchCommand(int switchNum, bool state) async {
+  void sendSwitchCommand(int pinNumber, bool state) async {
     try {
-      String command = "SW$switchNum:${state ? 'ON' : 'OFF'}";
+      String command = "D$pinNumber:${state ? 'ON' : 'OFF'}";
       await widget.characteristic.write(
         utf8.encode(command),
         withoutResponse: widget.characteristic.properties.writeWithoutResponse,
@@ -1098,9 +1117,10 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
             const SizedBox(height: 30),
             Expanded(
               child: ListView.builder(
-                itemCount: 8,
+                itemCount: 11,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemBuilder: (context, index) {
+                  int pinNumber = index + 2; // D2 to D12
                   return Card(
                     elevation: 4,
                     margin: const EdgeInsets.only(bottom: 15),
@@ -1114,7 +1134,7 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
                         size: 35,
                       ),
                       title: Text(
-                        "Switch ${index + 1}",
+                        "D$pinNumber",
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1134,7 +1154,7 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
                           setState(() {
                             switchStates[index] = value;
                           });
-                          sendSwitchCommand(index + 1, value);
+                          sendSwitchCommand(pinNumber, value);
                         },
                         activeColor: Colors.green,
                       ),
@@ -1153,7 +1173,7 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
                         setState(() {
                           for (int i = 0; i < switchStates.length; i++) {
                             switchStates[i] = true;
-                            sendSwitchCommand(i + 1, true);
+                            sendSwitchCommand(i + 2, true); // D2 to D12
                           }
                         });
                       },
@@ -1174,7 +1194,7 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
                         setState(() {
                           for (int i = 0; i < switchStates.length; i++) {
                             switchStates[i] = false;
-                            sendSwitchCommand(i + 1, false);
+                            sendSwitchCommand(i + 2, false); // D2 to D12
                           }
                         });
                       },
@@ -3122,6 +3142,422 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================
+// SENSOR DISPLAY SCREEN
+// ============================================
+class SensorDisplayScreen extends StatefulWidget {
+  final BluetoothDevice device;
+  final BluetoothCharacteristic characteristic;
+
+  const SensorDisplayScreen({
+    super.key,
+    required this.device,
+    required this.characteristic,
+  });
+
+  @override
+  State<SensorDisplayScreen> createState() => _SensorDisplayScreenState();
+}
+
+class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
+  // Digital pins configuration (6 dropdowns)
+  List<String> digitalPins = [
+    'D0',
+    'D1',
+    'D2',
+    'D3',
+    'D4',
+    'D5',
+    'D6',
+    'D7',
+    'D8',
+    'D9',
+    'D10',
+    'D11',
+    'D12',
+    'D13',
+    'D14',
+    'D15',
+    'D16',
+    'D17',
+    'D18'
+  ];
+  List<String?> selectedDigitalPins = [null, null, null, null, null, null];
+  List<String> digitalOutputs = ['--', '--', '--', '--', '--', '--'];
+
+  // Analog pins configuration (4 dropdowns)
+  List<String> analogPins = [
+    'A0',
+    'A1',
+    'A2',
+    'A3',
+    'A4',
+    'A5',
+    'A6',
+    'A7',
+    'A8'
+  ];
+  List<String?> selectedAnalogPins = [null, null, null, null];
+  List<String> analogOutputs = ['--', '--', '--', '--'];
+
+  bool isReading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startReadingLoop();
+  }
+
+  void _startReadingLoop() {
+    // Request sensor readings every 500ms
+    Future.doWhile(() async {
+      if (!mounted) return false;
+      await _requestSensorReadings();
+      await Future.delayed(const Duration(milliseconds: 500));
+      return mounted;
+    });
+  }
+
+  Future<void> _requestSensorReadings() async {
+    if (!mounted || isReading) return;
+
+    setState(() => isReading = true);
+
+    try {
+      // Request digital readings
+      for (int i = 0; i < selectedDigitalPins.length; i++) {
+        if (selectedDigitalPins[i] != null) {
+          String command = "READ_DIGITAL:${selectedDigitalPins[i]}";
+          await widget.characteristic.write(
+            utf8.encode(command),
+            withoutResponse:
+                widget.characteristic.properties.writeWithoutResponse,
+          );
+          await Future.delayed(const Duration(milliseconds: 50));
+        }
+      }
+
+      // Request analog readings
+      for (int i = 0; i < selectedAnalogPins.length; i++) {
+        if (selectedAnalogPins[i] != null) {
+          String command = "READ_ANALOG:${selectedAnalogPins[i]}";
+          await widget.characteristic.write(
+            utf8.encode(command),
+            withoutResponse:
+                widget.characteristic.properties.writeWithoutResponse,
+          );
+          await Future.delayed(const Duration(milliseconds: 50));
+        }
+      }
+    } catch (e) {
+      print("Error requesting sensor readings: $e");
+    } finally {
+      if (mounted) {
+        setState(() => isReading = false);
+      }
+    }
+  }
+
+  void _setupCharacteristicListener() {
+    widget.characteristic.lastValueStream.listen((value) {
+      if (!mounted) return;
+
+      String response = utf8.decode(value);
+      _parseResponse(response);
+    });
+  }
+
+  void _parseResponse(String response) {
+    // Parse responses like "D5:HIGH" or "A2:512"
+    if (response.contains(':')) {
+      List<String> parts = response.split(':');
+      String pin = parts[0];
+      String value = parts[1];
+
+      // Update digital outputs
+      for (int i = 0; i < selectedDigitalPins.length; i++) {
+        if (selectedDigitalPins[i] == pin) {
+          if (mounted) {
+            setState(() {
+              digitalOutputs[i] = value;
+            });
+          }
+          break;
+        }
+      }
+
+      // Update analog outputs
+      for (int i = 0; i < selectedAnalogPins.length; i++) {
+        if (selectedAnalogPins[i] == pin) {
+          if (mounted) {
+            setState(() {
+              analogOutputs[i] = value;
+            });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Sensor Display"),
+        backgroundColor: Colors.orange,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.orange.shade50, Colors.white],
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.sensors, size: 80, color: Colors.orange),
+              const SizedBox(height: 10),
+              Text(
+                "Connected to: ${widget.device.platformName}",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+
+              // DIGITAL SECTION
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.blue, width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.developer_board,
+                            color: Colors.blue.shade700),
+                        const SizedBox(width: 10),
+                        Text(
+                          "Digital Pins (D0-D18)",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    ...List.generate(6, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.blue.shade300),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
+                                    hint: Text("Select Pin ${index + 1}"),
+                                    value: selectedDigitalPins[index],
+                                    items: digitalPins.map((pin) {
+                                      return DropdownMenuItem(
+                                        value: pin,
+                                        child: Text(pin),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedDigitalPins[index] = value;
+                                        digitalOutputs[index] = '--';
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                padding: const EdgeInsets.all(15),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.blue.shade300),
+                                ),
+                                child: Text(
+                                  digitalOutputs[index],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: digitalOutputs[index] == 'HIGH'
+                                        ? Colors.green
+                                        : digitalOutputs[index] == 'LOW'
+                                            ? Colors.red
+                                            : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // ANALOG SECTION
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.green, width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.analytics, color: Colors.green.shade700),
+                        const SizedBox(width: 10),
+                        Text(
+                          "Analog Pins (A0-A8)",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    ...List.generate(4, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 15),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.green.shade300),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
+                                    hint: Text("Select Pin ${index + 1}"),
+                                    value: selectedAnalogPins[index],
+                                    items: analogPins.map((pin) {
+                                      return DropdownMenuItem(
+                                        value: pin,
+                                        child: Text(pin),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedAnalogPins[index] = value;
+                                        analogOutputs[index] = '--';
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                padding: const EdgeInsets.all(15),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.green.shade300),
+                                ),
+                                child: Text(
+                                  analogOutputs[index],
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: analogOutputs[index] != '--'
+                                        ? Colors.green.shade700
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Info text
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Select pins from dropdowns to monitor their values in real-time",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
