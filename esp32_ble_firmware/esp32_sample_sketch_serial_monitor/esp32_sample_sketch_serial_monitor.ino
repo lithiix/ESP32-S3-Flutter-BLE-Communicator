@@ -71,74 +71,47 @@ class MyCallbacks : public BLECharacteristicCallbacks {
       String sensor = receivedText.substring(5); // Extract sensor name (S1, S2, etc.)
       String response = "";
       
-      // Read ultrasonic sensor
-      float distance = getUltrasonicDistance();
+      if (sensor == "S1") {
+        // Read ultrasonic sensor
+        float distance = getUltrasonicDistance();
+        
+        if (distance > 0) {
+          response = "S1:" + String(distance, 1); // Format: S1:25.3
+        } else {
+          response = "S1:0"; // No valid reading
+        }
+        
+        Serial.print("Sending: ");
+        Serial.println(response);
+      }
+      else if (sensor == "S2") {
+        response = "S2:0"; // S2 not configured
+      }
+      else if (sensor == "S3") {
+        response = "S3:0"; // S3 not configured
+      }
+      else if (sensor == "S4") {
+        response = "S4:0"; // S4 not configured
+      }
+      else if (sensor == "S5") {
+        response = "S5:0"; // S5 not configured
+      }
+      else if (sensor == "S6") {
+        response = "S6:0"; // S6 not configured
+      }
+      else if (sensor == "S7") {
+        response = "S7:0"; // S7 not configured
+      }
       
-      if (distance > 0) {
-        // Send S1
-        response = String("S1:") + " A " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S2
-        response = String("S2:") + " B " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S3
-        response = String("S3:") + " C " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S4
-        response = String("S4:") + " D " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S5
-        response = String("S5:") + " E " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S6
-        response = String("S6:") + " F " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        delay(50);
-        
-        // Send S7
-        response = String("S7:") + " G " + String(distance, 1);
-        Serial.print("Sending: ");
-        Serial.println(response);
-        pCharacteristic->setValue(response.c_str());
-        pCharacteristic->notify();
-        
-      } else {
-        response = "S1:0"; // No valid reading
+      // Send response back to app
+      if (response.length() > 0) {
         pCharacteristic->setValue(response.c_str());
         pCharacteristic->notify();
       }
-      
       return; // Don't update lastMessage or display for READ commands
     }
 
+    // For non-READ commands, update lastMessage and display
     if (receivedText == lastMessage) return;
     lastMessage = receivedText;
 
@@ -194,22 +167,27 @@ void setup() {
 void loop() {
 
   /* ---------- ULTRASONIC ADDED ---------- */
-  // Do not overwrite display if BLE message is showing
-  if (lastMessage != "") return;
+  // Display ultrasonic readings continuously
+  // Only skip if lastMessage is a display command (not a READ command)
+  // This allows the display to keep working even when connected to BLE
 
   if (millis() - lastUltrasonicUpdate >= 1000) {
     lastUltrasonicUpdate = millis();
 
     float distance = getUltrasonicDistance();
 
-    ClsDis();
-    TextDisplay("OBJECT ");
-    TextDisplay("DISTANCE ");
+    // Only update display if no specific display message is being shown
+    // (lastMessage is empty or it was a READ command which doesn't affect display)
+    if (lastMessage == "" || lastMessage == "CONNECTED") {
+      ClsDis();
+      TextDisplay("OBJECT ");
+      TextDisplay("DISTENCE ");
 
-    if (distance > 0) {
-      TextDisplay(String(distance, 1) + " CM");
-    } else {
-      TextDisplay("NOT DETECTED");
+      if (distance > 0) {
+        TextDisplay(String(distance, 1) + " CM");
+      } else {
+        TextDisplay("NOT DETECTED");
+      }
     }
   }
   /* ------------------------------------ */

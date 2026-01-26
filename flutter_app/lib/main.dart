@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -846,6 +847,32 @@ class _LEDControlScreenState extends State<LEDControlScreen> {
   double brightness = 255;
   bool isOn = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
+
   void sendLEDCommand(String command) async {
     try {
       await widget.characteristic.write(
@@ -1077,6 +1104,32 @@ class SwitchesControlScreen extends StatefulWidget {
 class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
   List<bool> switchStates = List.generate(11, (index) => false);
 
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
+
   void sendSwitchCommand(int pinNumber, bool state) async {
     try {
       String command = "D$pinNumber:${state ? 'ON' : 'OFF'}";
@@ -1238,6 +1291,32 @@ class GamepadControlScreen extends StatefulWidget {
 class _GamepadControlScreenState extends State<GamepadControlScreen> {
   String currentCommand = "IDLE";
   String pressedButton = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   void sendCommand(String command) async {
     try {
@@ -1566,6 +1645,7 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
   @override
   void initState() {
     super.initState();
+    _monitorConnection();
     // Listen for incoming data
     widget.characteristic.lastValueStream.listen((value) {
       if (value.isNotEmpty) {
@@ -1576,6 +1656,26 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
             "isSent": false,
           });
         });
+      }
+    });
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     });
   }
@@ -1738,6 +1838,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
   void initState() {
     super.initState();
     _initSpeech();
+    _monitorConnection();
 
     // Listen for incoming data
     widget.characteristic.lastValueStream.listen((value) {
@@ -1749,6 +1850,27 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
             "isSent": false,
           });
         });
+      }
+    });
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        _speech.stop();
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     });
   }
@@ -2101,6 +2223,32 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
   bool isHornActive = false;
   bool isLightActive = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
+
   void sendCommand(String command) async {
     try {
       await widget.characteristic.write(
@@ -2380,6 +2528,32 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
   String pressedButton = "";
   bool isHornActive = false;
   bool isLightActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   void sendCommand(String command) async {
     try {
@@ -2663,6 +2837,32 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
   String pressedButton = "";
   double speedSlider = 0.0;
   double steeringSlider = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _monitorConnection();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
+  }
 
   void sendCommand(String command) async {
     try {
@@ -3167,143 +3367,163 @@ class SensorDisplayScreen extends StatefulWidget {
 }
 
 class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
-  // Digital pins configuration (6 dropdowns)
-  List<String> digitalPins = [
-    'D0',
-    'D1',
-    'D2',
-    'D3',
-    'D4',
-    'D5',
-    'D6',
-    'D7',
-    'D8',
-    'D9',
-    'D10',
-    'D11',
-    'D12',
-    'D13',
-    'D14',
-    'D15',
-    'D16',
-    'D17',
-    'D18'
-  ];
-  List<String?> selectedDigitalPins = [null, null, null, null, null, null];
-  List<String> digitalOutputs = ['--', '--', '--', '--', '--', '--'];
+  // Sensor pins configuration (7 dropdowns for S1-S7)
+  List<String> availablePins = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'];
 
-  // Analog pins configuration (4 dropdowns)
-  List<String> analogPins = [
-    'A0',
-    'A1',
-    'A2',
-    'A3',
-    'A4',
-    'A5',
-    'A6',
-    'A7',
-    'A8'
-  ];
-  List<String?> selectedAnalogPins = [null, null, null, null];
-  List<String> analogOutputs = ['--', '--', '--', '--'];
+  List<String?> selectedSensorPins = [null, null, null, null, null, null, null];
+  List<String> sensorLabels = ['1', '2', '3', '4', '5', '6', '7'];
+  List<TextEditingController> textControllers =
+      List.generate(7, (index) => TextEditingController());
 
-  bool isReading = false;
+  Timer? _readTimer;
+  bool _isReading = false;
 
   @override
   void initState() {
     super.initState();
-    _startReadingLoop();
+    _setupCharacteristicListener();
+    _enableNotifications();
+    _monitorConnection();
   }
 
-  void _startReadingLoop() {
-    // Request sensor readings every 500ms
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      await _requestSensorReadings();
-      await Future.delayed(const Duration(milliseconds: 500));
-      return mounted;
+  @override
+  void dispose() {
+    _readTimer?.cancel();
+    for (var controller in textControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _monitorConnection() {
+    widget.device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        print("Device disconnected! Redirecting to scan screen...");
+        _readTimer?.cancel();
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const BLEHomeScreen()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("BLE Device Disconnected"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     });
   }
 
-  Future<void> _requestSensorReadings() async {
-    if (!mounted || isReading) return;
-
-    setState(() => isReading = true);
-
+  void _enableNotifications() async {
     try {
-      // Request digital readings
-      for (int i = 0; i < selectedDigitalPins.length; i++) {
-        if (selectedDigitalPins[i] != null) {
-          String command = "READ_DIGITAL:${selectedDigitalPins[i]}";
-          await widget.characteristic.write(
-            utf8.encode(command),
-            withoutResponse:
-                widget.characteristic.properties.writeWithoutResponse,
-          );
-          await Future.delayed(const Duration(milliseconds: 50));
-        }
-      }
-
-      // Request analog readings
-      for (int i = 0; i < selectedAnalogPins.length; i++) {
-        if (selectedAnalogPins[i] != null) {
-          String command = "READ_ANALOG:${selectedAnalogPins[i]}";
-          await widget.characteristic.write(
-            utf8.encode(command),
-            withoutResponse:
-                widget.characteristic.properties.writeWithoutResponse,
-          );
-          await Future.delayed(const Duration(milliseconds: 50));
-        }
-      }
+      await widget.characteristic.setNotifyValue(true);
+      print("Notifications enabled for characteristic");
     } catch (e) {
-      print("Error requesting sensor readings: $e");
-    } finally {
-      if (mounted) {
-        setState(() => isReading = false);
-      }
+      print("Error enabling notifications: $e");
     }
   }
 
   void _setupCharacteristicListener() {
     widget.characteristic.lastValueStream.listen((value) {
-      if (!mounted) return;
-
-      String response = utf8.decode(value);
-      _parseResponse(response);
+      if (value.isNotEmpty) {
+        String response = utf8.decode(value);
+        print("Received response: $response");
+        _parseResponse(response);
+      }
     });
   }
 
   void _parseResponse(String response) {
-    // Parse responses like "D5:HIGH" or "A2:512"
-    if (response.contains(':')) {
-      List<String> parts = response.split(':');
-      String pin = parts[0];
-      String value = parts[1];
+    // Expected format: "S1: A 16.0" or "S2: B 16.0" etc.
+    // Can handle multiple responses separated by newlines
+    try {
+      print("Raw response received: '$response'");
 
-      // Update digital outputs
-      for (int i = 0; i < selectedDigitalPins.length; i++) {
-        if (selectedDigitalPins[i] == pin) {
-          if (mounted) {
+      // Split by newlines in case multiple responses come at once
+      List<String> lines = response.split('\n');
+
+      for (String line in lines) {
+        line = line.trim();
+        if (line.isEmpty || !line.contains(':')) continue;
+
+        List<String> parts = line.split(':');
+        if (parts.length < 2) continue;
+
+        String sensor = parts[0].trim(); // "S1", "S2", etc.
+        String valueSection = parts[1].trim(); // "A 16.0", "B 16.0", etc.
+
+        // Keep the full value section with letter and number
+        // Format: "G 16.0 cm" where G is the letter identifier
+        String displayValue = "$valueSection cm";
+
+        print("Parsed - Sensor: $sensor, Raw: $valueSection, Display: $displayValue");
+
+        // Find which dropdown has this sensor selected
+        for (int i = 0; i < selectedSensorPins.length; i++) {
+          if (selectedSensorPins[i] == sensor) {
             setState(() {
-              digitalOutputs[i] = value;
+              textControllers[i].text = displayValue;
             });
+            print(
+                "Updated textbox $i (label: ${sensorLabels[i]}) with value: $displayValue for sensor $sensor");
+            break;
           }
-          break;
         }
       }
+    } catch (e) {
+      print("Error parsing sensor response: $e");
+    }
+  }
 
-      // Update analog outputs
-      for (int i = 0; i < selectedAnalogPins.length; i++) {
-        if (selectedAnalogPins[i] == pin) {
-          if (mounted) {
-            setState(() {
-              analogOutputs[i] = value;
-            });
-          }
-          break;
-        }
+  void _startPeriodicReading() {
+    if (_isReading) return;
+
+    _isReading = true;
+    _readTimer?.cancel();
+
+    // Read sensors every 4 seconds to allow time for all sensors to respond
+    _readTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      _requestAllSelectedSensors();
+    });
+
+    // Initial read
+    _requestAllSelectedSensors();
+  }
+
+  void _stopPeriodicReading() {
+    _isReading = false;
+    _readTimer?.cancel();
+  }
+
+  void _requestAllSelectedSensors() async {
+    print("\n=== Starting sensor reading cycle ===");
+    for (int i = 0; i < selectedSensorPins.length; i++) {
+      if (selectedSensorPins[i] != null) {
+        print(
+            "Requesting ${selectedSensorPins[i]} for textbox $i (label: ${sensorLabels[i]})");
+        await _requestSensorReading(selectedSensorPins[i]!);
+        // Wait 500ms for board to process and respond
+        await Future.delayed(const Duration(milliseconds: 500));
       }
+    }
+    print("=== Finished sensor reading cycle ===\n");
+  }
+
+  Future<void> _requestSensorReading(String sensor) async {
+    try {
+      // Send command to ESP32 to request sensor reading
+      String command = "READ:$sensor";
+      // Use write WITH response to ensure acknowledgment
+      await widget.characteristic.write(
+        utf8.encode(command),
+        withoutResponse: false,
+      );
+      print("✓ Sent command: $command (with acknowledgment)");
+    } catch (e) {
+      print("✗ Error requesting sensor reading for $sensor: $e");
     }
   }
 
@@ -3336,97 +3556,162 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
               ),
               const SizedBox(height: 30),
 
-              // DIGITAL SECTION
+              // SENSOR PINS SECTION
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.blue, width: 2),
+                  border: Border.all(color: Colors.orange, width: 2),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.developer_board,
-                            color: Colors.blue.shade700),
+                        Icon(Icons.sensors_outlined,
+                            color: Colors.orange.shade700, size: 30),
                         const SizedBox(width: 10),
                         Text(
-                          "Digital Pins (D0-D18)",
+                          "Sensor Pins",
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
+                            color: Colors.orange.shade700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 15),
-                    ...List.generate(6, (index) {
+                    const SizedBox(height: 20),
+
+                    // Generate 7 sensor dropdowns (S1-S7)
+                    ...List.generate(7, (index) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 15),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border:
-                                      Border.all(color: Colors.blue.shade300),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    isExpanded: true,
-                                    hint: Text("Select Pin ${index + 1}"),
-                                    value: selectedDigitalPins[index],
-                                    items: digitalPins.map((pin) {
-                                      return DropdownMenuItem(
-                                        value: pin,
-                                        child: Text(pin),
-                                      );
-                                    }).toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        selectedDigitalPins[index] = value;
-                                        digitalOutputs[index] = '--';
-                                      });
-                                    },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                // Sensor Label (S1, S2, etc.)
+                                Container(
+                                  width: 45,
+                                  height: 45,
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      sensorLabels[index],
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 1,
-                              child: Container(
-                                padding: const EdgeInsets.all(15),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border:
-                                      Border.all(color: Colors.blue.shade300),
-                                ),
-                                child: Text(
-                                  digitalOutputs[index],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: digitalOutputs[index] == 'HIGH'
-                                        ? Colors.green
-                                        : digitalOutputs[index] == 'LOW'
-                                            ? Colors.red
-                                            : Colors.grey,
+                                const SizedBox(width: 12),
+
+                                // Dropdown
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: Colors.orange.shade200),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        isExpanded: true,
+                                        hint: const Text("Select Pin",
+                                            style: TextStyle(fontSize: 14)),
+                                        value: selectedSensorPins[index],
+                                        items: availablePins.map((pin) {
+                                          return DropdownMenuItem(
+                                            value: pin,
+                                            child: Text(pin,
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                          );
+                                        }).toList(),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            selectedSensorPins[index] = value;
+                                            // Clear previous value
+                                            textControllers[index].text = '';
+                                          });
+                                          // Start real-time reading when any sensor is selected
+                                          _startPeriodicReading();
+                                        },
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+
+                                // Text Box (Read-only for displaying values from board)
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    height: 45,
+                                    child: TextField(
+                                      controller: textControllers[index],
+                                      readOnly: true,
+                                      decoration: InputDecoration(
+                                        hintText: "--",
+                                        hintStyle: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade400),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: Colors.orange.shade200),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: Colors.orange.shade200),
+                                        ),
+                                        disabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey.shade300),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.grey.shade100,
+                                      ),
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       );
                     }),
@@ -3434,101 +3719,36 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
-              // ANALOG SECTION
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.green, width: 2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.analytics, color: Colors.green.shade700),
-                        const SizedBox(width: 10),
-                        Text(
-                          "Analog Pins (A0-A8)",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                      ],
+              // Control buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _isReading ? null : _startPeriodicReading,
+                    icon: const Icon(Icons.play_arrow, color: Colors.white),
+                    label: const Text("Start Reading",
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                     ),
-                    const SizedBox(height: 15),
-                    ...List.generate(4, (index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 15),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border:
-                                      Border.all(color: Colors.green.shade300),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    isExpanded: true,
-                                    hint: Text("Select Pin ${index + 1}"),
-                                    value: selectedAnalogPins[index],
-                                    items: analogPins.map((pin) {
-                                      return DropdownMenuItem(
-                                        value: pin,
-                                        child: Text(pin),
-                                      );
-                                    }).toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        selectedAnalogPins[index] = value;
-                                        analogOutputs[index] = '--';
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 1,
-                              child: Container(
-                                padding: const EdgeInsets.all(15),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border:
-                                      Border.all(color: Colors.green.shade300),
-                                ),
-                                child: Text(
-                                  analogOutputs[index],
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: analogOutputs[index] != '--'
-                                        ? Colors.green.shade700
-                                        : Colors.grey,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: _isReading ? _stopPeriodicReading : null,
+                    icon: const Icon(Icons.stop, color: Colors.white),
+                    label: const Text("Stop Reading",
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 20),
@@ -3547,7 +3767,7 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "Select pins from dropdowns to monitor their values in real-time",
+                        "Select sensors from dropdowns (S1-S7) and press 'Start Reading' to view real-time values",
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.blue.shade700,
