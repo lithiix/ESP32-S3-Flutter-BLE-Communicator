@@ -33,13 +33,13 @@ class OnboardingScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/lionbit_car.png',
+              'assets/logo_w.png',
               width: 200,
               height: 200,
             ),
             const SizedBox(height: 30),
             const Text(
-              "LionBit BLE Communicator",
+              " ESP32 BLE Communicator",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -49,7 +49,7 @@ class OnboardingScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                "Connect and communicate with your ESP32 devices via Bluetooth Low Energy",
+                "This Bluetooth-connected application to support STEM activities, created by LionBit Solutions, Lionbit.cc",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -94,9 +94,11 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       "87654321-4321-4321-4321-ba0987654321";
 
   List<BluetoothDevice> scannedDevices = [];
+  Map<String, String> deviceNames = {}; // Store device names from scan results
   BluetoothDevice? connectedDevice;
   BluetoothCharacteristic? targetCharacteristic;
   bool isDiscoveringServices = false;
+  bool isScanning = false;
 
   @override
   void initState() {
@@ -160,47 +162,94 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
 
   /// Start scanning for BLE devices
   void startScan() async {
+    print("🔍 startScan() called");
     scannedDevices.clear();
-    setState(() {});
+    setState(() {
+      isScanning = true;
+    });
 
     // Check if Bluetooth is available
     if (await FlutterBluePlus.isSupported == false) {
-      print("Bluetooth not supported by this device");
+      print("❌ Bluetooth not supported by this device");
+      setState(() => isScanning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bluetooth not supported"), backgroundColor: Colors.red),
+      );
       return;
     }
 
     // Check if Bluetooth is turned on
     var adapterState = await FlutterBluePlus.adapterState.first;
-    print("Bluetooth adapter state: $adapterState");
+    print("📡 Bluetooth adapter state: $adapterState");
     if (adapterState != BluetoothAdapterState.on) {
-      print("Please turn on Bluetooth");
+      print("⚠️ Bluetooth is OFF");
+      setState(() => isScanning = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please turn on Bluetooth"), backgroundColor: Colors.orange),
+      );
+      // Try to turn on Bluetooth automatically
+      if (await FlutterBluePlus.isSupported) {
+        FlutterBluePlus.turnOn();
+      }
       return;
     }
 
-    print("Starting BLE scan...");
+    print("✅ Starting BLE scan...");
     await FlutterBluePlus.stopScan();
 
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
+    // Start scanning with Android scan mode set to low latency for better discovery
+    await FlutterBluePlus.startScan(
+      timeout: const Duration(seconds: 15),
+      androidUsesFineLocation: true,
+    );
 
+    // Listen to scan results
     FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
-      print("Scan found ${results.length} devices");
+      print("📊 Scan results: ${results.length} devices found");
+      
+      Set<String> addedIds = scannedDevices.map((d) => d.remoteId.toString()).toSet();
+      
       for (ScanResult result in results) {
-        String deviceName = result.device.platformName;
-        print("Found device: $deviceName (${result.device.remoteId})");
+        String platformName = result.device.platformName;
+        String advName = result.advertisementData.advName;
+        String deviceId = result.device.remoteId.toString();
+        
+        // Prefer platform name, then advertisement name
+        String displayName = platformName.isNotEmpty ? platformName : advName;
+        
+        print("📱 Device: $displayName | PlatformName: $platformName | AdvName: $advName | ID: $deviceId | RSSI: ${result.rssi}");
 
-        // Show all devices with names (remove ESP32 filter temporarily for debugging)
-        if (deviceName.isNotEmpty && !scannedDevices.contains(result.device)) {
-          print("Adding device: $deviceName");
+        // Add all BLE devices and store their names
+        if (!addedIds.contains(deviceId)) {
+          print("➕ Adding device: ${displayName.isEmpty ? 'Unknown Device' : displayName}");
           setState(() {
             scannedDevices.add(result.device);
+            deviceNames[deviceId] = displayName; // Store the name
+            addedIds.add(deviceId);
+          });
+        } else if (displayName.isNotEmpty && deviceNames[deviceId]!.isEmpty) {
+          // Update name if we got a better one
+          setState(() {
+            deviceNames[deviceId] = displayName;
           });
         }
       }
+    }, onError: (error) {
+      print("❌ Scan error: $error");
+      setState(() => isScanning = false);
+    });
+
+    // Also listen to onScanResults for immediate updates
+    FlutterBluePlus.onScanResults.listen((results) {
+      print("⚡ onScanResults: ${results.length} devices");
+    }, onError: (error) {
+      print("❌ onScanResults error: $error");
     });
 
     Future.delayed(const Duration(seconds: 15), () {
-      print("Scan completed. Found ${scannedDevices.length} devices");
+      print("✅ Scan completed. Total devices found: ${scannedDevices.length}");
       FlutterBluePlus.stopScan();
+      setState(() => isScanning = false);
     });
   }
 
@@ -368,42 +417,106 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       children: [
         const SizedBox(height: 20),
         Image.asset(
-          'assets/lionbit_car.png',
+          'assets/logo_w.png',
           width: 160,
           height: 160,
         ),
         const SizedBox(height: 10),
         const Text(
-          "LionBit BLE Communicator",
+          "ESP32 BLE Communicator",
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: startScan,
-          child: const Text("Scan for Devices"),
+        ElevatedButton.icon(
+          onPressed: isScanning ? null : startScan,
+          icon: Icon(isScanning ? Icons.hourglass_empty : Icons.bluetooth_searching),
+          label: Text(isScanning ? "Scanning..." : "Scan for Devices"),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          ),
         ),
+        const SizedBox(height: 10),
+        if (isScanning)
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: CircularProgressIndicator(),
+          ),
+        if (!isScanning && scannedDevices.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Text(
+              "No devices found. Make sure Bluetooth is on and device is nearby.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        if (scannedDevices.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Found ${scannedDevices.length} device(s)",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
         Expanded(
           child: ListView.builder(
             itemCount: scannedDevices.length,
             itemBuilder: (context, index) {
               BluetoothDevice device = scannedDevices[index];
-              String deviceName = device.platformName.isNotEmpty
-                  ? device.platformName
-                  : "Unknown Device";
-              bool isLionBit = deviceName == "LionBit_BLE";
+              String deviceId = device.remoteId.toString();
+              
+              // Get stored name from scan results
+              String storedName = deviceNames[deviceId] ?? "";
+              String platformName = device.platformName;
+              
+              // Determine display name
+              String deviceName = storedName.isNotEmpty 
+                  ? storedName 
+                  : (platformName.isNotEmpty ? platformName : "Unknown Device");
+              
+              bool isLionBit = deviceName.contains("LionBit") || deviceName == "LionBit_BLE";
+              bool hasName = storedName.isNotEmpty || platformName.isNotEmpty;
 
-              return ListTile(
-                leading: isLionBit
-                    ? Image.asset(
-                        'assets/lionbit_car.png',
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.contain,
-                      )
-                    : const Icon(Icons.bluetooth, color: Colors.blue),
-                title: Text(deviceName),
-                subtitle: Text(device.remoteId.toString()),
-                onTap: () => connectToDevice(device),
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                child: ListTile(
+                  leading: isLionBit
+                      ? Image.asset(
+                          'assets/logo_w.png',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
+                        )
+                      : Icon(
+                          hasName ? Icons.bluetooth : Icons.bluetooth_disabled,
+                          color: hasName ? Colors.blue : Colors.grey,
+                          size: 40,
+                        ),
+                  title: Text(
+                    deviceName,
+                    style: TextStyle(
+                      fontWeight: isLionBit ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 16,
+                      color: hasName ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        deviceId,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      if (hasName && storedName != platformName && platformName.isNotEmpty)
+                        Text(
+                          "Also known as: $platformName",
+                          style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
+                        ),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () => connectToDevice(device),
+                ),
               );
             },
           ),
@@ -3459,7 +3572,8 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
         // Format: "G 16.0 cm" where G is the letter identifier
         String displayValue = "$valueSection cm";
 
-        print("Parsed - Sensor: $sensor, Raw: $valueSection, Display: $displayValue");
+        print(
+            "Parsed - Sensor: $sensor, Raw: $valueSection, Display: $displayValue");
 
         // Find which dropdown has this sensor selected
         for (int i = 0; i < selectedSensorPins.length; i++) {
