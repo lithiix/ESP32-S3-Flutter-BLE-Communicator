@@ -1,6 +1,22 @@
 # ESP32-S3 BLE Flutter Application
 
-A comprehensive Bluetooth Low Energy (BLE) communication system with multiple control interfaces for ESP32-S3 devices, featuring voice recognition, gamepad controls, and advanced vehicle control systems.
+A comprehensive Bluetooth Low Energy (BLE) communication system with multiple control interfaces for ESP32-S3 devices, featuring voice recognition, gamepad controls, advanced vehicle control systems, **and real-time display feedback**.
+
+## 🎯 NEW: Display Feature
+
+**Your ESP32 now displays everything you do on the mobile app!**
+
+- ✅ Shows all commands on built-in OLED display (128x64)
+- ✅ Real-time updates: D2:ON, LED:255,0,0,200, F (Forward), etc.
+- ✅ Connection status tracking
+- ✅ Command history (last 3 commands)
+- ✅ Two firmware options: with display or Serial Monitor only
+- ✅ **No mobile app changes required!**
+
+📖 **Quick Start:** See [QUICK_START_DISPLAY.md](QUICK_START_DISPLAY.md)  
+📖 **Full Guide:** See [DISPLAY_SETUP.md](DISPLAY_SETUP.md)  
+📖 **Wiring Diagrams:** See [DISPLAY_DIAGRAMS.md](DISPLAY_DIAGRAMS.md)  
+📖 **Visual Examples:** See [DISPLAY_EXAMPLES.md](DISPLAY_EXAMPLES.md)
 
 ## Features
 
@@ -9,6 +25,7 @@ A comprehensive Bluetooth Low Energy (BLE) communication system with multiple co
 - Device discovery and connection management for ESP32-S3 BLE devices
 - Bidirectional data transmission between mobile app and ESP32
 - Real-time notification handling and display
+- **Real-time command display on ESP32 OLED screen** ⭐ NEW
 - Intuitive user interface with device scanning capabilities
 - Graceful connection termination and error handling
 - Automatic permission handling for Bluetooth, location, and microphone services
@@ -21,6 +38,7 @@ A comprehensive Bluetooth Low Energy (BLE) communication system with multiple co
 - On/Off toggle for LED control
 - Live color preview
 - Smooth gradient UI design
+- **Commands displayed on ESP32: LED:r,g,b,brightness** ⭐ NEW
 
 ### Vehicle Controller
 
@@ -32,6 +50,7 @@ Three specialized vehicle control modes:
 - Circular horn and light buttons with toggle functionality
 - Press animations on all control buttons
 - Real-time status indicators
+- **Movement displayed on ESP32: F, B, L, R, S** ⭐ NEW
 
 **4-Wheel Vehicle Control**
 
@@ -39,6 +58,7 @@ Three specialized vehicle control modes:
 - Circular horn and light buttons positioned beside forward control
 - Toggle-based horn and light activation
 - Animated button feedback
+- **All actions displayed on ESP32 screen** ⭐ NEW
 
 **Advanced Vehicle Control**
 
@@ -46,6 +66,7 @@ Three specialized vehicle control modes:
 - Steering control slider (-100 to +100)
 - Real-time slider value display
 - Precise control for advanced maneuvers
+- **Precise values shown on ESP32 display** ⭐ NEW
 
 ### Gamepad Controller
 
@@ -77,10 +98,11 @@ Three specialized vehicle control modes:
 
 ### Switches Controller
 
-- 8 independent toggle switches
+- 11 independent toggle switches (D2-D12)
 - Real-time switch state management
 - Visual feedback for each switch
-- Bulk control capability
+- Bulk control capability (ALL ON / ALL OFF)
+- **Each switch action displayed on ESP32: D2:ON, D5:OFF, etc.** ⭐ NEW
 
 ### User Experience
 
@@ -122,7 +144,6 @@ ESP32-S3-BLE-App/
    Download from the [official Arduino website](https://www.arduino.cc/en/software).
 
 2. **Configure ESP32 Board Support**
-
    - Navigate to File > Preferences
    - Add the following URL to Additional Boards Manager URLs:
      ```
@@ -133,16 +154,52 @@ ESP32-S3-BLE-App/
 
 3. **Install Required Libraries**
 
+   **For Basic BLE (without display):**
    - Open Tools > Manage Libraries
    - Search and install "ESP32 BLE Arduino"
 
-4. **Upload Firmware**
+   **For Display Support (recommended):**
+   - Search and install "Adafruit GFX Library"
+   - Search and install "Adafruit SSD1306"
 
-   - Open `esp32_ble_firmware.ino` from the `esp32_ble_firmware/` directory
+4. **Choose Your Firmware**
+
+   **Option 1: With OLED Display (Recommended)**
+   - File: `esp32_sample_sketch.ino`
+   - Requires: 128x64 OLED display (SSD1306, I2C)
+   - Shows: Real-time commands on display
+   - See: [QUICK_START_DISPLAY.md](QUICK_START_DISPLAY.md) for wiring
+
+   **Option 2: Serial Monitor Only**
+   - File: `esp32_sample_sketch_serial_monitor.ino`
+   - Requires: Nothing extra
+   - Shows: Formatted output in Serial Monitor
+
+5. **Upload Firmware**
+   - Open your chosen `.ino` file from the `esp32_ble_firmware/` directory
    - Select your ESP32-S3 board from Tools > Board
    - Connect your ESP32-S3 via USB
    - Click Upload
    - Open Serial Monitor (115200 baud) to verify BLE advertising status
+   - If using display: Watch display show "Waiting for connection..."
+
+### Display Setup (Optional but Recommended)
+
+See complete guides:
+
+- **Quick Start:** [QUICK_START_DISPLAY.md](QUICK_START_DISPLAY.md)
+- **Wiring Diagrams:** [DISPLAY_DIAGRAMS.md](DISPLAY_DIAGRAMS.md)
+- **Full Setup:** [DISPLAY_SETUP.md](DISPLAY_SETUP.md)
+
+**Quick Wiring:**
+
+```
+OLED Display → ESP32-S3
+VCC → 3.3V
+GND → GND
+SDA → GPIO 21
+SCL → GPIO 22
+```
 
 ### Flutter Application Setup
 
@@ -165,7 +222,6 @@ ESP32-S3-BLE-App/
 4. **Configure Permissions**
 
    **Android**: Ensure the following permissions are declared in `android/app/src/main/AndroidManifest.xml`:
-
    - `BLUETOOTH`
    - `BLUETOOTH_ADMIN`
    - `BLUETOOTH_SCAN`
@@ -176,7 +232,6 @@ ESP32-S3-BLE-App/
    - `INTERNET` (for speech recognition)
 
    **iOS**: Add required keys to `ios/Runner/Info.plist`:
-
    - `NSBluetoothAlwaysUsageDescription`
    - `NSBluetoothPeripheralUsageDescription`
    - `NSMicrophoneUsageDescription` (for voice terminal)

@@ -2,25 +2,10 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-
-// Display configuration
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-#define SCREEN_ADDRESS 0x3C
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // You can define your own UUIDs.:
 #define SERVICE_UUID        "12345678-1234-1234-1234-1234567890ab"
 #define CHARACTERISTIC_UUID "abcd1234-0000-1000-8000-00805f9b34fb"
-
-// Store last 3 commands for display
-String lastCommands[3] = {"", "", ""};
-int commandIndex = 0;
 
 BLEServer* pServer = nullptr;
 BLECharacteristic* pCharacteristic = nullptr;
@@ -28,38 +13,28 @@ BLECharacteristic* pCharacteristic = nullptr;
 // Flags to keep track of device connection
 bool deviceConnected = false;
 
+// Store last 3 commands
+String lastCommands[3] = {"", "", ""};
+int commandIndex = 0;
+
 // Create a callback class to handle server events
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
-      Serial.println("BLE Client Connected!");
-      
-      // Update display
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setTextColor(SSD1306_WHITE);
-      display.setCursor(0, 0);
-      display.println(F("Status: CONNECTED"));
-      display.println(F("-------------"));
-      display.println(F("Ready to receive"));
-      display.println(F("commands..."));
-      display.display();
+      Serial.println("\n========================================");
+      Serial.println("    BLE CLIENT CONNECTED!");
+      Serial.println("========================================");
+      Serial.println("Status: READY TO RECEIVE COMMANDS");
+      Serial.println("========================================\n");
     }
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
-      Serial.println("BLE Client Disconnected!");
-      
-      // Update display
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setTextColor(SSD1306_WHITE);
-      display.setCursor(0, 0);
-      display.println(F("Status: DISCONNECTED"));
-      display.println(F("-------------"));
-      display.println(F("Waiting for"));
-      display.println(F("connection..."));
-      display.display();
+      Serial.println("\n========================================");
+      Serial.println("    BLE CLIENT DISCONNECTED!");
+      Serial.println("========================================");
+      Serial.println("Waiting for new connection...");
+      Serial.println("========================================\n");
       
       // Clear command history
       for (int i = 0; i < 3; i++) {
@@ -80,11 +55,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
       String rxValue = pCharacteristic->getValue();
 
       if (rxValue.length() > 0) {
-        Serial.print("Received: ");
-        Serial.println(rxValue);
-        
-        // Update display with the received command
-        updateDisplay(rxValue);
+        // Display command with formatting
+        displayCommand(rxValue);
         
         // Process specific commands
         if (rxValue == "GET_DATA") {
@@ -92,11 +64,11 @@ class MyServerCallbacks: public BLEServerCallbacks {
             String message = "Temp: 27.3°C | Humidity: 45%";
             pCharacteristic->setValue(message.c_str());
             pCharacteristic->notify();
-            Serial.println("Sent sensor data to app.");
+            Serial.println("  → Sent sensor data to app");
         }
         // Handle LED commands
         else if (rxValue.startsWith("LED:")) {
-          Serial.println("LED command received");
+          Serial.println("  → LED command processed");
           // Parse and handle LED control
         }
         // Handle digital pin commands (D2:ON, D5:OFF, etc.)
@@ -106,18 +78,28 @@ class MyServerCallbacks: public BLEServerCallbacks {
         // Handle movement commands (F, B, L, R, S, etc.)
         else if (rxValue == "F" || rxValue == "B" || rxValue == "L" || 
                  rxValue == "R" || rxValue == "S" || rxValue == "STOP") {
-          Serial.print("Movement command: ");
-          Serial.println(rxValue);
-          // Handle vehicle movement
+          String movementType;
+          if (rxValue == "F") movementType = "FORWARD";
+          else if (rxValue == "B") movementType = "BACKWARD";
+          else if (rxValue == "L") movementType = "LEFT";
+          else if (rxValue == "R") movementType = "RIGHT";
+          else if (rxValue == "S" || rxValue == "STOP") movementType = "STOP";
+          
+          Serial.print("  → Vehicle movement: ");
+          Serial.println(movementType);
         }
         // Handle horn
         else if (rxValue.startsWith("HORN:")) {
+          Serial.print("  → ");
           Serial.println(rxValue);
         }
         // Handle headlight
         else if (rxValue.startsWith("HEADLIGHT:")) {
+          Serial.print("  → ");
           Serial.println(rxValue);
         }
+        
+        Serial.println("----------------------------------------\n");
       }
   }
 
@@ -125,24 +107,13 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting BLE work!");
-  // Initialize display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    // Continue anyway, display functions will just not work
-  } else {
-    Serial.println("Display initialized");
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.println(F("ESP32-S3 BLE"));
-    display.println(F("Waiting for"));
-    display.println(F("connection..."));
-    display.display();
-  }
+  Serial.println("\n========================================");
+  Serial.println("   ESP32-S3 BLE CONTROLLER");
+  Serial.println("========================================");
+  Serial.println("Starting BLE service...");
+
   // 1. Initialize the BLE device
-  BLEDevice::init("ESP32-S3-BLE-Example");  // This is the device name you’ll see on your phone
+  BLEDevice::init("ESP32-S3-BLE-Example");  // This is the device name you'll see on your phone
 
   // 2. Create the BLE Server
   pServer = BLEDevice::createServer();
@@ -177,7 +148,10 @@ void setup() {
   pAdvertising->setMinPreferred(0x12);
 
   BLEDevice::startAdvertising();
-  Serial.println("BLE advertising started...");
+  Serial.println("✓ BLE advertising started");
+  Serial.println("Device Name: ESP32-S3-BLE-Example");
+  Serial.println("Waiting for connection...");
+  Serial.println("========================================\n");
 }
 
 void loop() {
@@ -194,46 +168,48 @@ void loop() {
       message += String(millis()/1000);
       pCharacteristic->setValue(message.c_str());
       pCharacteristic->notify();  // push to the client if it's subscribed
-      Serial.println("Notified value: " + message);
     }
   }
   delay(10);
 }
 
-// Function to update display with received commands
-void updateDisplay(String command) {
+// Function to display received commands with nice formatting
+void displayCommand(String command) {
   // Store command in history
   lastCommands[commandIndex] = command;
   commandIndex = (commandIndex + 1) % 3;
   
-  // Clear and update display
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
+  // Display current command
+  Serial.println("╔════════════════════════════════════════╗");
+  Serial.print("║  COMMAND RECEIVED: ");
+  Serial.print(command);
+  // Add padding
+  int padding = 19 - command.length();
+  for (int i = 0; i < padding; i++) {
+    Serial.print(" ");
+  }
+  Serial.println("║");
+  Serial.println("╠════════════════════════════════════════╣");
   
-  // Title
-  display.setCursor(0, 0);
-  display.println(F("BLE Commands:"));
-  display.println(F("-------------"));
-  
-  // Show last 3 commands
-  int yPos = 20;
+  // Show command history
+  Serial.println("║  RECENT COMMANDS:                      ║");
   for (int i = 0; i < 3; i++) {
     int idx = (commandIndex - 1 - i + 3) % 3;
     if (lastCommands[idx].length() > 0) {
-      display.setCursor(0, yPos);
-      // Truncate if too long
-      String displayCmd = lastCommands[idx];
-      if (displayCmd.length() > 16) {
-        displayCmd = displayCmd.substring(0, 13) + "...";
+      Serial.print("║  ");
+      Serial.print(i + 1);
+      Serial.print(". ");
+      Serial.print(lastCommands[idx]);
+      // Add padding
+      int cmdPadding = 34 - lastCommands[idx].length();
+      for (int j = 0; j < cmdPadding; j++) {
+        Serial.print(" ");
       }
-      display.println(displayCmd);
-      yPos += 12;
+      Serial.println("║");
     }
   }
-  
-  display.display();
-  Serial.println("Display updated: " + command);
+  Serial.println("╚════════════════════════════════════════╝");
+  Serial.print("  Processing: ");
 }
 
 // Function to handle digital pin commands like "D2:ON", "D5:OFF"
@@ -245,7 +221,7 @@ void handleDigitalPinCommand(String command) {
     
     int pinNumber = pinStr.toInt();
     
-    Serial.print("Pin D");
+    Serial.print("  → Digital Pin D");
     Serial.print(pinNumber);
     Serial.print(" set to ");
     Serial.println(state);
@@ -254,8 +230,14 @@ void handleDigitalPinCommand(String command) {
     pinMode(pinNumber, OUTPUT);
     if (state == "ON") {
       digitalWrite(pinNumber, HIGH);
+      Serial.print("  → GPIO ");
+      Serial.print(pinNumber);
+      Serial.println(" = HIGH");
     } else if (state == "OFF") {
       digitalWrite(pinNumber, LOW);
+      Serial.print("  → GPIO ");
+      Serial.print(pinNumber);
+      Serial.println(" = LOW");
     }
   }
 }
