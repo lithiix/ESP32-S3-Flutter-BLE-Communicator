@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "cc.lionbit.esp32ble"
+        applicationId = "cc.lionbitble.esp32ble"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = 2
