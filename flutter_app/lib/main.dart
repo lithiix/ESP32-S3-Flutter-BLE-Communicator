@@ -5,13 +5,73 @@ import 'dart:async';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:ble_esp32/ads/app_open_ad_manager.dart';
+import 'package:ble_esp32/ads/app_lifecycle_reactor.dart';
+import 'package:ble_esp32/ads/banner_ad_widget.dart';
+import 'package:ble_esp32/ads/ad_consent_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Basic initialization
   runApp(const MyApp());
+  
+  // Background initialization for non-critical services (matches MedzophenApp)
+  _initializeNonCriticalServices();
 }
 
-class MyApp extends StatelessWidget {
+Future<void> _initializeNonCriticalServices() async {
+  // Add a small delay for UI to settle (as done in MedzophenApp)
+  await Future.delayed(const Duration(milliseconds: 500));
+
+  try {
+    // Group 1: Initialize ads and consent in parallel
+    await Future.wait([
+      MobileAds.instance.initialize().then((_) {
+        debugPrint('✅ Mobile Ads initialized');
+        return AdConsentService.instance.initialize(
+          maxAdContentRating: MaxAdContentRating.g,
+          testDeviceIds: const [],
+        );
+      }).catchError((e) {
+        debugPrint('⚠️ Error initializing ads: $e');
+        return Future.value();
+      }),
+    ]);
+
+    // For testing/initial launch: If no consent is set, we might want to default it 
+    // to enabled so ads actually show during development.
+    if (!AdConsentService.instance.canShowAds) {
+      debugPrint('AdConsentService: No consent found, enabling by default for development');
+      await AdConsentService.instance.setConsent(true, personalizedAds: true);
+    }
+
+    // Load App Open Ad
+    AppOpenAdManager.prepareAndScheduleShow();
+    
+    // Start listening to app lifecycle
+    AppLifecycleReactor().listenToAppStateChanges();
+
+    debugPrint('🎉 Background ad services initialized');
+  } catch (e) {
+    debugPrint('⚠️ Error during background initialization: $e');
+  }
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // In MedzophenApp, the ad is managed by prepareAndScheduleShow on startup
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -386,6 +446,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       appBar: AppBar(
           title: const Text("ESP32 BLE Connect"), backgroundColor: Colors.blue),
       body: connectedDevice == null ? _buildScanUI() : _buildLoadingUI(),
+      bottomNavigationBar: BannerAdWidget(),
     );
   }
 
@@ -544,6 +605,7 @@ class ControllerSelectionScreen extends StatelessWidget {
         title: const Text("Select Controller Type"),
         backgroundColor: Colors.blue,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -791,6 +853,7 @@ class VehicleControllerTypeScreen extends StatelessWidget {
         title: const Text("Select Vehicle Type"),
         backgroundColor: Colors.blue,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1018,6 +1081,7 @@ class _LEDControlScreenState extends State<LEDControlScreen> {
         title: const Text("LED Controller"),
         backgroundColor: Colors.amber,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1263,6 +1327,7 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
         title: const Text("Switches Controller"),
         backgroundColor: Colors.green,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1453,6 +1518,7 @@ class _GamepadControlScreenState extends State<GamepadControlScreen> {
         title: const Text("Gamepad Controller"),
         backgroundColor: Colors.purple,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1834,6 +1900,7 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Column(
         children: [
           Container(
@@ -2135,6 +2202,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -2384,6 +2452,7 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
         title: const Text("2-Wheel Control"),
         backgroundColor: Colors.orange,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -2690,6 +2759,7 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
         title: const Text("4-Wheel Control"),
         backgroundColor: Colors.blue,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -3014,6 +3084,7 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
         title: const Text("Advanced Control"),
         backgroundColor: Colors.red,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -3648,6 +3719,7 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
         title: const Text("Sensor Display"),
         backgroundColor: Colors.orange,
       ),
+      bottomNavigationBar: BannerAdWidget(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

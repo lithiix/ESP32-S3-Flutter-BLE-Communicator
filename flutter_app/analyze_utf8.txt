@@ -1,0 +1,113 @@
+﻿Analyzing flutter_app...                                        
+
+  error - Undefined name 'WidgetsBinding' - lib\ads\app_open_ad_manager.dart:56:11 - undefined_identifier
+   info - The constant name 'SERVICE_UUID' isn't a lowerCamelCase identifier - lib\main.dart:140:23 - constant_identifier_names
+   info - The constant name 'CHARACTERISTIC_UUID' isn't a lowerCamelCase identifier - lib\main.dart:141:23 - constant_identifier_names
+   info - Don't invoke 'print' in production code - lib\main.dart:176:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:178:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:207:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:213:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:221:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\main.dart:223:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\main.dart:231:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:233:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\main.dart:235:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\main.dart:245:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:256:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:268:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:272:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:286:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:292:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:294:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:298:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:319:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:320:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:321:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:324:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:328:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:330:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:331:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:332:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:333:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:335:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:339:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:341:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:347:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:350:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:357:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:358:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:359:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:360:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:361:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:363:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:384:17 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:394:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:395:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:396:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:397:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:418:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:782:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:809:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:950:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:977:45 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:1046:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:1048:7 - avoid_print
+   info - 'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round() & 0xff - lib\main.dart:1053:26 - deprecated_member_use
+   info - 'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round() & 0xff - lib\main.dart:1054:26 - deprecated_member_use
+   info - 'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round() & 0xff - lib\main.dart:1055:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1104:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1105:43 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:1305:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:1307:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:1496:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:1498:7 - avoid_print
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\main.dart:1649:13 - sized_box_for_whitespace
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1689:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1727:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1771:37 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:1869:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:2066:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:2080:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:2117:7 - avoid_print
+   info - 'partialResults' is deprecated and shouldn't be used. Use SpeechListenOptions.partialResults instead - lib\main.dart:2164:9 - deprecated_member_use
+   info - 'cancelOnError' is deprecated and shouldn't be used. Use SpeechListenOptions.cancelOnError instead - lib\main.dart:2165:9 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2240:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2241:41 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:2430:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:2432:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2603:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2652:41 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:2737:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:2739:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2913:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2961:41 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:3047:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3049:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3285:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3287:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3335:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3337:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3436:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3495:45 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\main.dart:3573:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3595:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3597:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3605:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3615:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3634:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3643:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3650:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3675:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3678:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3685:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3697:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:3699:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3771:53 - deprecated_member_use
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\main.dart:3846:42 - sized_box_for_whitespace
+   info - 'name' is deprecated and shouldn't be used. Use platformName instead - lib\version_1.dart:59:27 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use lastValueStream instead - lib\version_1.dart:92:26 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\version_1.dart:106:7 - avoid_print
+   info - 'name' is deprecated and shouldn't be used. Use platformName instead - lib\version_1.dart:145:36 - deprecated_member_use
+   info - 'id' is deprecated and shouldn't be used. Use remoteId instead - lib\version_1.dart:146:39 - deprecated_member_use
+   info - 'name' is deprecated and shouldn't be used. Use platformName instead - lib\version_1.dart:162:45 - deprecated_member_use
+

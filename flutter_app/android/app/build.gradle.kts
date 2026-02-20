@@ -17,24 +17,34 @@ plugins {
 
 android {
     namespace = "cc.lionbit.esp32ble"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
+
+    packagingOptions {
+        pickFirsts += "**/libc++_shared.so"
+        pickFirsts += "**/libjsc.so"
+        pickFirsts += "META-INF/*.kotlin_module"
+        pickFirsts += "META-INF/kotlin-stdlib*.kotlin_module"
+        pickFirsts += "META-INF/kotlin-stdlib-jdk*.kotlin_module"
+    }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
         applicationId = "cc.lionbitble.esp32ble"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 26
+        targetSdk = 36
         versionCode = 2
         versionName = "2.0.0"
+        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -63,4 +73,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.google.android.gms:play-services-ads:24.6.0")
 }
