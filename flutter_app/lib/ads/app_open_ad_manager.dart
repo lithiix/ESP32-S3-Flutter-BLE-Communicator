@@ -1,6 +1,5 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:io';
 import 'package:flutter/widgets.dart';
 
 /// App Open Ad manager to show ads on app launch.
@@ -10,11 +9,9 @@ class AppOpenAdManager {
   static bool _isShowingAd = false;
   static bool _requestedThisLaunch = false;
 
-  // App Open Ad unit IDs - using TEST IDs for verification
-  static String get _adUnitId =>
-      (Platform.isIOS)
-          ? 'ca-app-pub-3940256099942544/5662855259' // iOS Test App Open
-          : 'ca-app-pub-3940256099942544/9257395915'; // Android Test App Open
+  // Dedicated App Open Ad unit ID for ESP32 BLE Communicator
+  // Source: AdMob dashboard → ca-app-pub-7246605734713628~6861632529
+  static String get _adUnitId => 'ca-app-pub-7246605734713628/6813531064';
 
   static void prepareAndScheduleShow() {
     if (_requestedThisLaunch || _isShowingAd) return;

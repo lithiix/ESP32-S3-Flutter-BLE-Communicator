@@ -13,15 +13,15 @@ class AdConsentService {
   bool _initialized = false;
   bool _tagForChildDirected = false;
   bool _tagForUnderAge = false;
-  bool _consentGiven = false;
-  bool _canShowAds = false;
-  bool _personalizedAds = false;
+  bool _consentGiven = true;   // Default true – updated from SharedPreferences on init
+  bool _canShowAds = true;     // Default true – updated from SharedPreferences on init
+  bool _personalizedAds = true; // Default true – updated from SharedPreferences on init
 
   // Keys for SharedPreferences
   static const String _consentGivenKey = 'consent_given';
   static const String _canShowAdsKey = 'can_show_ads';
   static const String _personalizedAdsKey = 'personalized_ads';
-
+   
   /// Call once during app startup before loading any ads.
   Future<void> initialize({
     bool tagForChildDirectedTreatment = false,
@@ -144,9 +144,9 @@ class AdConsentService {
   /// Load consent status from SharedPreferences
   Future<void> _loadConsentStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    _consentGiven = prefs.getBool(_consentGivenKey) ?? false;
-    _canShowAds = prefs.getBool(_canShowAdsKey) ?? false;
-    _personalizedAds = prefs.getBool(_personalizedAdsKey) ?? false;
+    _consentGiven = prefs.getBool(_consentGivenKey) ?? true;   // Default true
+    _canShowAds = prefs.getBool(_canShowAdsKey) ?? true;        // Default true
+    _personalizedAds = prefs.getBool(_personalizedAdsKey) ?? true; // Default true
     
     debugPrint('AdConsentService: Loaded consent status: $_consentGiven, can show ads: $_canShowAds, personalized: $_personalizedAds');
   }
