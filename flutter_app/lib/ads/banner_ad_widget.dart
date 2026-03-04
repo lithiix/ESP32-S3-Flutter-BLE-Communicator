@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter/material.dart';
-import 'package:ble_esp32/ads/ad_consent_service.dart';
+
 
 class BannerAdWidget extends StatefulWidget {
   const BannerAdWidget({super.key});
@@ -19,16 +18,19 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   void initState() {
     super.initState();
-    if (AdConsentService.instance.canShowAds) {
-      _loadBannerAd();
-    }
+    // Delay to allow MobileAds.instance.initialize() and consent setup
+    // to complete before attempting to load. This matches MedzophenApp pattern
+    // where ads/consent are initialized in background after runApp().
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted) {
+        _loadBannerAd();
+      }
+    });
   }
 
   void _loadBannerAd() {
     _bannerAd = BannerAd(
-      adUnitId: Platform.isAndroid
-          ? 'ca-app-pub-3940256099942544/6300978111' // Android Test Banner
-          : 'ca-app-pub-3940256099942544/2934735716', // iOS Test Banner
+      adUnitId: adUnitId, // Use the real production ad unit ID (defined above)
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

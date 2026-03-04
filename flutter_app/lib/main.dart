@@ -88,6 +88,7 @@ class OnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const BannerAdWidget(),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
