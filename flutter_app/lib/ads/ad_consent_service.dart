@@ -21,7 +21,7 @@ class AdConsentService {
   static const String _consentGivenKey = 'consent_given';
   static const String _canShowAdsKey = 'can_show_ads';
   static const String _personalizedAdsKey = 'personalized_ads';
-
+   
   /// Call once during app startup before loading any ads.
   Future<void> initialize({
     bool tagForChildDirectedTreatment = false,
