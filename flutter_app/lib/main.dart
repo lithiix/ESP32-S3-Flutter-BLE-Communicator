@@ -6,17 +6,17 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:ble_esp32/ads/app_open_ad_manager.dart';
-import 'package:ble_esp32/ads/app_lifecycle_reactor.dart';
-import 'package:ble_esp32/ads/banner_ad_widget.dart';
-import 'package:ble_esp32/ads/ad_consent_service.dart';
+import 'package:esp32_ble_controller/ads/app_open_ad_manager.dart';
+import 'package:esp32_ble_controller/ads/app_lifecycle_reactor.dart';
+import 'package:esp32_ble_controller/ads/banner_ad_widget.dart';
+import 'package:esp32_ble_controller/ads/ad_consent_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Basic initialization
   runApp(const MyApp());
-  
+
   // Background initialization for non-critical services (matches MedzophenApp)
   _initializeNonCriticalServices();
 }
@@ -28,28 +28,33 @@ Future<void> _initializeNonCriticalServices() async {
   try {
     // Group 1: Initialize ads and consent in parallel
     await Future.wait([
-      MobileAds.instance.initialize().then((_) {
-        debugPrint('✅ Mobile Ads initialized');
-        return AdConsentService.instance.initialize(
-          maxAdContentRating: MaxAdContentRating.g,
-          testDeviceIds: const [],
-        );
-      }).catchError((e) {
-        debugPrint('⚠️ Error initializing ads: $e');
-        return Future.value();
-      }),
+      MobileAds.instance
+          .initialize()
+          .then((_) {
+            debugPrint('✅ Mobile Ads initialized');
+            return AdConsentService.instance.initialize(
+              maxAdContentRating: MaxAdContentRating.g,
+              testDeviceIds: const [],
+            );
+          })
+          .catchError((e) {
+            debugPrint('⚠️ Error initializing ads: $e');
+            return Future.value();
+          }),
     ]);
 
-    // For testing/initial launch: If no consent is set, we might want to default it 
+    // For testing/initial launch: If no consent is set, we might want to default it
     // to enabled so ads actually show during development.
     if (!AdConsentService.instance.canShowAds) {
-      debugPrint('AdConsentService: No consent found, enabling by default for development');
+      debugPrint(
+        'AdConsentService: No consent found, enabling by default for development',
+      );
       await AdConsentService.instance.setConsent(true, personalizedAds: true);
     }
 
     // Load App Open Ad
     AppOpenAdManager.prepareAndScheduleShow();
-    
+
     // Start listening to app lifecycle
     AppLifecycleReactor().listenToAppStateChanges();
 
@@ -93,18 +98,11 @@ class OnboardingScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/logo_w.png',
-              width: 200,
-              height: 200,
-            ),
+            Image.asset('assets/logo_w.png', width: 200, height: 200),
             const SizedBox(height: 30),
             const Text(
               " ESP32 BLE Communicator",
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const Padding(
@@ -121,12 +119,15 @@ class OnboardingScreen extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const BLEHomeScreen()),
+                    builder: (context) => const BLEHomeScreen(),
+                  ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
                 backgroundColor: Colors.blue,
               ),
               child: const Text(
@@ -198,8 +199,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
           builder: (context) => AlertDialog(
             title: const Text('Permissions Required'),
             content: const Text(
-                'Bluetooth and Location permissions are required to scan for BLE devices. '
-                'Please grant all permissions in the app settings.'),
+              'Bluetooth and Location permissions are required to scan for BLE devices. '
+              'Please grant all permissions in the app settings.',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -234,7 +236,10 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       print("❌ Bluetooth not supported by this device");
       setState(() => isScanning = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Bluetooth not supported"), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Bluetooth not supported"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -246,7 +251,10 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       print("⚠️ Bluetooth is OFF");
       setState(() => isScanning = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please turn on Bluetooth"), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text("Please turn on Bluetooth"),
+          backgroundColor: Colors.orange,
+        ),
       );
       // Try to turn on Bluetooth automatically
       if (await FlutterBluePlus.isSupported) {
@@ -265,47 +273,59 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
     );
 
     // Listen to scan results
-    FlutterBluePlus.scanResults.listen((List<ScanResult> results) {
-      print("📊 Scan results: ${results.length} devices found");
-      
-      Set<String> addedIds = scannedDevices.map((d) => d.remoteId.toString()).toSet();
-      
-      for (ScanResult result in results) {
-        String platformName = result.device.platformName;
-        String advName = result.advertisementData.advName;
-        String deviceId = result.device.remoteId.toString();
-        
-        // Prefer platform name, then advertisement name
-        String displayName = platformName.isNotEmpty ? platformName : advName;
-        
-        print("📱 Device: $displayName | PlatformName: $platformName | AdvName: $advName | ID: $deviceId | RSSI: ${result.rssi}");
+    FlutterBluePlus.scanResults.listen(
+      (List<ScanResult> results) {
+        print("📊 Scan results: ${results.length} devices found");
 
-        // Add all BLE devices and store their names
-        if (!addedIds.contains(deviceId)) {
-          print("➕ Adding device: ${displayName.isEmpty ? 'Unknown Device' : displayName}");
-          setState(() {
-            scannedDevices.add(result.device);
-            deviceNames[deviceId] = displayName; // Store the name
-            addedIds.add(deviceId);
-          });
-        } else if (displayName.isNotEmpty && deviceNames[deviceId]!.isEmpty) {
-          // Update name if we got a better one
-          setState(() {
-            deviceNames[deviceId] = displayName;
-          });
+        Set<String> addedIds = scannedDevices
+            .map((d) => d.remoteId.toString())
+            .toSet();
+
+        for (ScanResult result in results) {
+          String platformName = result.device.platformName;
+          String advName = result.advertisementData.advName;
+          String deviceId = result.device.remoteId.toString();
+
+          // Prefer platform name, then advertisement name
+          String displayName = platformName.isNotEmpty ? platformName : advName;
+
+          print(
+            "📱 Device: $displayName | PlatformName: $platformName | AdvName: $advName | ID: $deviceId | RSSI: ${result.rssi}",
+          );
+
+          // Add all BLE devices and store their names
+          if (!addedIds.contains(deviceId)) {
+            print(
+              "➕ Adding device: ${displayName.isEmpty ? 'Unknown Device' : displayName}",
+            );
+            setState(() {
+              scannedDevices.add(result.device);
+              deviceNames[deviceId] = displayName; // Store the name
+              addedIds.add(deviceId);
+            });
+          } else if (displayName.isNotEmpty && deviceNames[deviceId]!.isEmpty) {
+            // Update name if we got a better one
+            setState(() {
+              deviceNames[deviceId] = displayName;
+            });
+          }
         }
-      }
-    }, onError: (error) {
-      print("❌ Scan error: $error");
-      setState(() => isScanning = false);
-    });
+      },
+      onError: (error) {
+        print("❌ Scan error: $error");
+        setState(() => isScanning = false);
+      },
+    );
 
     // Also listen to onScanResults for immediate updates
-    FlutterBluePlus.onScanResults.listen((results) {
-      print("⚡ onScanResults: ${results.length} devices");
-    }, onError: (error) {
-      print("❌ onScanResults error: $error");
-    });
+    FlutterBluePlus.onScanResults.listen(
+      (results) {
+        print("⚡ onScanResults: ${results.length} devices");
+      },
+      onError: (error) {
+        print("❌ onScanResults error: $error");
+      },
+    );
 
     Future.delayed(const Duration(seconds: 15), () {
       print("✅ Scan completed. Total devices found: ${scannedDevices.length}");
@@ -344,7 +364,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
           print("    Read: ${char.properties.read}");
           print("    Write: ${char.properties.write}");
           print(
-              "    WriteWithoutResponse: ${char.properties.writeWithoutResponse}");
+            "    WriteWithoutResponse: ${char.properties.writeWithoutResponse}",
+          );
           print("    Notify: ${char.properties.notify}");
         }
       }
@@ -352,7 +373,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
       print("\n=== Searching for Target Service ===");
       for (var service in services) {
         print(
-            "Comparing: ${service.uuid.toString().toLowerCase()} with ${SERVICE_UUID.toLowerCase()}");
+          "Comparing: ${service.uuid.toString().toLowerCase()} with ${SERVICE_UUID.toLowerCase()}",
+        );
 
         // Look for our specific service
         if (service.uuid.toString().toLowerCase() ==
@@ -361,7 +383,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
 
           for (var characteristic in service.characteristics) {
             print(
-                "  Comparing char: ${characteristic.uuid.toString().toLowerCase()} with ${CHARACTERISTIC_UUID.toLowerCase()}");
+              "  Comparing char: ${characteristic.uuid.toString().toLowerCase()} with ${CHARACTERISTIC_UUID.toLowerCase()}",
+            );
 
             // Match our specific characteristic
             if (characteristic.uuid.toString().toLowerCase() ==
@@ -372,7 +395,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
               print("  - Read: ${characteristic.properties.read}");
               print("  - Write: ${characteristic.properties.write}");
               print(
-                  "  - WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
+                "  - WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}",
+              );
               print("  - Notify: ${characteristic.properties.notify}");
 
               // Update UI state
@@ -413,7 +437,8 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  "Error: Service/Characteristic not found!\nCheck ESP32 UUIDs in firmware."),
+                "Error: Service/Characteristic not found!\nCheck ESP32 UUIDs in firmware.",
+              ),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 5),
               action: SnackBarAction(
@@ -445,7 +470,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text("ESP32 BLE Connect"), backgroundColor: Colors.blue),
+        title: const Text("ESP32 BLE Connect"),
+        backgroundColor: Colors.blue,
+      ),
       body: connectedDevice == null ? _buildScanUI() : _buildLoadingUI(),
       bottomNavigationBar: BannerAdWidget(),
     );
@@ -478,11 +505,7 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
     return Column(
       children: [
         const SizedBox(height: 20),
-        Image.asset(
-          'assets/logo_w.png',
-          width: 160,
-          height: 160,
-        ),
+        Image.asset('assets/logo_w.png', width: 160, height: 160),
         const SizedBox(height: 10),
         const Text(
           "ESP32 BLE Communicator",
@@ -491,7 +514,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
         const SizedBox(height: 20),
         ElevatedButton.icon(
           onPressed: isScanning ? null : startScan,
-          icon: Icon(isScanning ? Icons.hourglass_empty : Icons.bluetooth_searching),
+          icon: Icon(
+            isScanning ? Icons.hourglass_empty : Icons.bluetooth_searching,
+          ),
           label: Text(isScanning ? "Scanning..." : "Scan for Devices"),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
@@ -526,17 +551,18 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
             itemBuilder: (context, index) {
               BluetoothDevice device = scannedDevices[index];
               String deviceId = device.remoteId.toString();
-              
+
               // Get stored name from scan results
               String storedName = deviceNames[deviceId] ?? "";
               String platformName = device.platformName;
-              
+
               // Determine display name
-              String deviceName = storedName.isNotEmpty 
-                  ? storedName 
+              String deviceName = storedName.isNotEmpty
+                  ? storedName
                   : (platformName.isNotEmpty ? platformName : "Unknown Device");
-              
-              bool isLionBit = deviceName.contains("LionBit") || deviceName == "LionBit_BLE";
+
+              bool isLionBit =
+                  deviceName.contains("LionBit") || deviceName == "LionBit_BLE";
               bool hasName = storedName.isNotEmpty || platformName.isNotEmpty;
 
               return Card(
@@ -557,7 +583,9 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
                   title: Text(
                     deviceName,
                     style: TextStyle(
-                      fontWeight: isLionBit ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isLionBit
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 16,
                       color: hasName ? Colors.black : Colors.grey,
                     ),
@@ -567,12 +595,20 @@ class _BLEHomeScreenState extends State<BLEHomeScreen> {
                     children: [
                       Text(
                         deviceId,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                       ),
-                      if (hasName && storedName != platformName && platformName.isNotEmpty)
+                      if (hasName &&
+                          storedName != platformName &&
+                          platformName.isNotEmpty)
                         Text(
                           "Also known as: $platformName",
-                          style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.blueGrey,
+                          ),
                         ),
                     ],
                   ),
@@ -620,16 +656,14 @@ class ControllerSelectionScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/lionbit_car.png',
-                width: 120,
-                height: 120,
-              ),
+              Image.asset('assets/lionbit_car.png', width: 120, height: 120),
               const SizedBox(height: 20),
               Text(
                 "Connected to: ${device.platformName}",
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 40),
               _buildControllerOption(
@@ -872,8 +906,10 @@ class VehicleControllerTypeScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 "Connected to: ${device.platformName}",
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 40),
               _buildVehicleTypeOption(
@@ -1101,7 +1137,9 @@ class _LEDControlScreenState extends State<LEDControlScreen> {
                 Text(
                   "Connected to: ${widget.device.platformName}",
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 30),
 
@@ -1137,9 +1175,13 @@ class _LEDControlScreenState extends State<LEDControlScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("OFF",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "OFF",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Switch(
                       value: isOn,
@@ -1152,9 +1194,13 @@ class _LEDControlScreenState extends State<LEDControlScreen> {
                       activeColor: Colors.amber,
                     ),
                     const SizedBox(width: 10),
-                    const Text("ON",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "ON",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -1375,8 +1421,9 @@ class _SwitchesControlScreenState extends State<SwitchesControlScreen> {
                       subtitle: Text(
                         switchStates[index] ? "ON" : "OFF",
                         style: TextStyle(
-                          color:
-                              switchStates[index] ? Colors.green : Colors.grey,
+                          color: switchStates[index]
+                              ? Colors.green
+                              : Colors.grey,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1571,7 +1618,9 @@ class _GamepadControlScreenState extends State<GamepadControlScreen> {
                               const Text(
                                 "D-PAD",
                                 style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 20),
                               _buildDPad(),
@@ -1585,7 +1634,9 @@ class _GamepadControlScreenState extends State<GamepadControlScreen> {
                               const Text(
                                 "ACTIONS",
                                 style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 20),
                               _buildActionButtons(),
@@ -1659,10 +1710,7 @@ class _GamepadControlScreenState extends State<GamepadControlScreen> {
           children: [
             _buildActionButton("X", Colors.blue),
             const SizedBox(width: 10),
-            Container(
-              width: 50,
-              height: 50,
-            ),
+            Container(width: 50, height: 50),
             const SizedBox(width: 10),
             _buildActionButton("B", Colors.red),
           ],
@@ -1831,10 +1879,7 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
       if (value.isNotEmpty) {
         String message = utf8.decode(value);
         setState(() {
-          terminalMessages.insert(0, {
-            "text": message,
-            "isSent": false,
-          });
+          terminalMessages.insert(0, {"text": message, "isSent": false});
         });
       }
     });
@@ -1871,10 +1916,7 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
       );
 
       setState(() {
-        terminalMessages.insert(0, {
-          "text": "> $command",
-          "isSent": true,
-        });
+        terminalMessages.insert(0, {"text": "> $command", "isSent": true});
       });
 
       commandController.clear();
@@ -1887,8 +1929,10 @@ class _TerminalControlScreenState extends State<TerminalControlScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Terminal Controller",
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Terminal Controller",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color.fromARGB(221, 0, 0, 0),
         actions: [
           IconButton(
@@ -2026,10 +2070,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
       if (value.isNotEmpty) {
         String message = utf8.decode(value);
         setState(() {
-          terminalMessages.insert(0, {
-            "text": message,
-            "isSent": false,
-          });
+          terminalMessages.insert(0, {"text": message, "isSent": false});
         });
       }
     });
@@ -2063,8 +2104,9 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text("Microphone permission is required for voice commands"),
+            content: Text(
+              "Microphone permission is required for voice commands",
+            ),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -2121,10 +2163,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
       );
 
       setState(() {
-        terminalMessages.insert(0, {
-          "text": "🎤 $command",
-          "isSent": true,
-        });
+        terminalMessages.insert(0, {"text": "🎤 $command", "isSent": true});
       });
     } catch (e) {
       print("Error sending voice command: $e");
@@ -2225,7 +2264,9 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
                     child: Text(
                       "Connected to: ${widget.device.platformName}",
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -2374,10 +2415,7 @@ class _VoiceTerminalScreenState extends State<VoiceTerminalScreen> {
         backgroundColor: Colors.red,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       ),
-      child: Text(
-        command,
-        style: const TextStyle(color: Colors.white),
-      ),
+      child: Text(command, style: const TextStyle(color: Colors.white)),
     );
   }
 }
@@ -2526,7 +2564,8 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
                               isLightActive = !isLightActive;
                             });
                             sendCommand(
-                                isLightActive ? "LIGHT:ON" : "LIGHT:OFF");
+                              isLightActive ? "LIGHT:ON" : "LIGHT:OFF",
+                            );
                           },
                           color: isLightActive ? Colors.yellow : Colors.grey,
                           isActive: isLightActive,
@@ -2669,11 +2708,7 @@ class _TwoWheelControlScreenState extends State<TwoWheelControlScreen> {
                   ),
                 ],
               ),
-              child: Icon(
-                icon,
-                size: 36,
-                color: Colors.white,
-              ),
+              child: Icon(icon, size: 36, color: Colors.white),
             ),
           ),
         ),
@@ -2772,11 +2807,7 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
         child: Column(
           children: [
             const SizedBox(height: 20),
-            Image.asset(
-              'assets/lionbit_car.png',
-              width: 120,
-              height: 120,
-            ),
+            Image.asset('assets/lionbit_car.png', width: 120, height: 120),
             const SizedBox(height: 10),
             Text(
               "Connected to: ${widget.device.platformName}",
@@ -2837,7 +2868,8 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
                               isLightActive = !isLightActive;
                             });
                             sendCommand(
-                                isLightActive ? "LIGHT:ON" : "LIGHT:OFF");
+                              isLightActive ? "LIGHT:ON" : "LIGHT:OFF",
+                            );
                           },
                           color: isLightActive ? Colors.yellow : Colors.grey,
                           isActive: isLightActive,
@@ -2978,11 +3010,7 @@ class _FourWheelControlScreenState extends State<FourWheelControlScreen> {
                   ),
                 ],
               ),
-              child: Icon(
-                icon,
-                size: 36,
-                color: Colors.white,
-              ),
+              child: Icon(icon, size: 36, color: Colors.white),
             ),
           ),
         ),
@@ -3098,18 +3126,25 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              const Icon(Icons.settings_input_component,
-                  size: 100, color: Colors.red),
+              const Icon(
+                Icons.settings_input_component,
+                size: 100,
+                color: Colors.red,
+              ),
               const SizedBox(height: 10),
               Text(
                 "Connected to: ${widget.device.platformName}",
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isArmed ? Colors.red.shade100 : Colors.green.shade100,
                   borderRadius: BorderRadius.circular(20),
@@ -3132,8 +3167,10 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isArmed ? Colors.green : Colors.red,
                   foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -3294,12 +3331,13 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
                                   SliderTheme(
                                     data: SliderThemeData(
                                       activeTrackColor: Colors.red,
-                                      inactiveTrackColor:
-                                          Colors.red.withOpacity(0.3),
+                                      inactiveTrackColor: Colors.red
+                                          .withOpacity(0.3),
                                       thumbColor: Colors.red,
                                       overlayColor: Colors.red.withOpacity(0.2),
                                       thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 12),
+                                        enabledThumbRadius: 12,
+                                      ),
                                     ),
                                     child: Slider(
                                       value: speedSlider,
@@ -3327,8 +3365,10 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
                         // Steering Slider
                         Row(
                           children: [
-                            const Icon(Icons.settings_ethernet,
-                                color: Colors.red),
+                            const Icon(
+                              Icons.settings_ethernet,
+                              color: Colors.red,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
@@ -3344,12 +3384,13 @@ class _AdvancedControlScreenState extends State<AdvancedControlScreen> {
                                   SliderTheme(
                                     data: SliderThemeData(
                                       activeTrackColor: Colors.red,
-                                      inactiveTrackColor:
-                                          Colors.red.withOpacity(0.3),
+                                      inactiveTrackColor: Colors.red
+                                          .withOpacity(0.3),
                                       thumbColor: Colors.red,
                                       overlayColor: Colors.red.withOpacity(0.2),
                                       thumbShape: const RoundSliderThumbShape(
-                                          enabledThumbRadius: 12),
+                                        enabledThumbRadius: 12,
+                                      ),
                                     ),
                                     child: Slider(
                                       value: steeringSlider,
@@ -3557,8 +3598,10 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
 
   List<String?> selectedSensorPins = [null, null, null, null, null, null, null];
   List<String> sensorLabels = ['1', '2', '3', '4', '5', '6', '7'];
-  List<TextEditingController> textControllers =
-      List.generate(7, (index) => TextEditingController());
+  List<TextEditingController> textControllers = List.generate(
+    7,
+    (index) => TextEditingController(),
+  );
 
   Timer? _readTimer;
   bool _isReading = false;
@@ -3645,7 +3688,8 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
         String displayValue = "$valueSection cm";
 
         print(
-            "Parsed - Sensor: $sensor, Raw: $valueSection, Display: $displayValue");
+          "Parsed - Sensor: $sensor, Raw: $valueSection, Display: $displayValue",
+        );
 
         // Find which dropdown has this sensor selected
         for (int i = 0; i < selectedSensorPins.length; i++) {
@@ -3654,7 +3698,8 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
               textControllers[i].text = displayValue;
             });
             print(
-                "Updated textbox $i (label: ${sensorLabels[i]}) with value: $displayValue for sensor $sensor");
+              "Updated textbox $i (label: ${sensorLabels[i]}) with value: $displayValue for sensor $sensor",
+            );
             break;
           }
         }
@@ -3689,7 +3734,8 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
     for (int i = 0; i < selectedSensorPins.length; i++) {
       if (selectedSensorPins[i] != null) {
         print(
-            "Requesting ${selectedSensorPins[i]} for textbox $i (label: ${sensorLabels[i]})");
+          "Requesting ${selectedSensorPins[i]} for textbox $i (label: ${sensorLabels[i]})",
+        );
         await _requestSensorReading(selectedSensorPins[i]!);
         // Wait 500ms for board to process and respond
         await Future.delayed(const Duration(milliseconds: 500));
@@ -3738,8 +3784,10 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
               const SizedBox(height: 10),
               Text(
                 "Connected to: ${widget.device.platformName}",
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 30),
 
@@ -3756,8 +3804,11 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.sensors_outlined,
-                            color: Colors.orange.shade700, size: 30),
+                        Icon(
+                          Icons.sensors_outlined,
+                          color: Colors.orange.shade700,
+                          size: 30,
+                        ),
                         const SizedBox(width: 10),
                         Text(
                           "Sensor Pins",
@@ -3817,25 +3868,33 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                                   flex: 2,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 4),
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.grey.shade50,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                          color: Colors.orange.shade200),
+                                        color: Colors.orange.shade200,
+                                      ),
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<String>(
                                         isExpanded: true,
-                                        hint: const Text("Select Pin",
-                                            style: TextStyle(fontSize: 14)),
+                                        hint: const Text(
+                                          "Select Pin",
+                                          style: TextStyle(fontSize: 14),
+                                        ),
                                         value: selectedSensorPins[index],
                                         items: availablePins.map((pin) {
                                           return DropdownMenuItem(
                                             value: pin,
-                                            child: Text(pin,
-                                                style: const TextStyle(
-                                                    fontSize: 14)),
+                                            child: Text(
+                                              pin,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
                                           );
                                         }).toList(),
                                         onChanged: (value) {
@@ -3864,35 +3923,45 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                                       decoration: InputDecoration(
                                         hintText: "--",
                                         hintStyle: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey.shade400),
+                                          fontSize: 14,
+                                          color: Colors.grey.shade400,
+                                        ),
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 10),
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                         border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide(
-                                              color: Colors.orange.shade200),
+                                            color: Colors.orange.shade200,
+                                          ),
                                         ),
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide(
-                                              color: Colors.orange.shade200),
+                                            color: Colors.orange.shade200,
+                                          ),
                                         ),
                                         disabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           borderSide: BorderSide(
-                                              color: Colors.grey.shade300),
+                                            color: Colors.grey.shade300,
+                                          ),
                                         ),
                                         filled: true,
                                         fillColor: Colors.grey.shade100,
                                       ),
                                       style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -3915,24 +3984,32 @@ class _SensorDisplayScreenState extends State<SensorDisplayScreen> {
                   ElevatedButton.icon(
                     onPressed: _isReading ? null : _startPeriodicReading,
                     icon: const Icon(Icons.play_arrow, color: Colors.white),
-                    label: const Text("Start Reading",
-                        style: TextStyle(color: Colors.white)),
+                    label: const Text(
+                      "Start Reading",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton.icon(
                     onPressed: _isReading ? _stopPeriodicReading : null,
                     icon: const Icon(Icons.stop, color: Colors.white),
-                    label: const Text("Stop Reading",
-                        style: TextStyle(color: Colors.white)),
+                    label: const Text(
+                      "Stop Reading",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],

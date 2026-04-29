@@ -1,5 +1,5 @@
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:ble_esp32/ads/app_open_ad_manager.dart';
+import 'package:esp32_ble_controller/ads/app_open_ad_manager.dart';
 import 'package:flutter/foundation.dart';
 
 /// Listens for app foreground events and shows app open ads.

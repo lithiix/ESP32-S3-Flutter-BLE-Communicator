@@ -18,7 +18,7 @@ plugins {
 android {
     namespace = "cc.lionbit.esp32ble"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     packagingOptions {
         pickFirsts += "**/libc++_shared.so"
@@ -42,7 +42,7 @@ android {
         applicationId = "cc.lionbitble.esp32ble"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
+        versionCode = 5
         versionName = "2.0.0"
         multiDexEnabled = true
     }
