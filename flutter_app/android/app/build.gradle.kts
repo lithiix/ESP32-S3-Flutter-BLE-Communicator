@@ -42,7 +42,7 @@ android {
         applicationId = "cc.lionbitble.esp32ble"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = "2.0.0"
         multiDexEnabled = true
     }
